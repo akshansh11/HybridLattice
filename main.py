@@ -8,7 +8,7 @@ import re
 
 # Page configuration
 st.set_page_config(
-    page_title="HybridLattice ",
+    page_title="HybridLattice",
     page_icon="⚛",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -107,10 +107,84 @@ if 'current_pattern' not in st.session_state:
     st.session_state.current_pattern = None
 if 'gemini_model' not in st.session_state:
     st.session_state.gemini_model = None
+if 'selected_bending_cell' not in st.session_state:
+    st.session_state.selected_bending_cell = 'honeycomb'
+if 'selected_stretching_cell' not in st.session_state:
+    st.session_state.selected_stretching_cell = 'octet'
 
-# Color scheme
+# Color scheme for cell types
 COLOR_BENDING = 'rgb(135, 206, 250)'  # Sky blue
 COLOR_STRETCHING = 'rgb(255, 0, 0)'   # Red
+
+# Unit cell type definitions
+BENDING_CELL_TYPES = {
+    'honeycomb': {
+        'name': 'Honeycomb',
+        'description': 'Hexagonal honeycomb structure - high flexibility',
+        'energy_absorption': 'High',
+        'stiffness': 'Low',
+        'applications': 'Impact protection, cushioning'
+    },
+    'auxetic': {
+        'name': 'Auxetic (Re-entrant)',
+        'description': 'Re-entrant honeycomb - negative Poisson ratio',
+        'energy_absorption': 'Very High',
+        'stiffness': 'Very Low',
+        'applications': 'Protective equipment, seals'
+    },
+    'chiral': {
+        'name': 'Chiral',
+        'description': 'Rotating nodes with tangent ligaments',
+        'energy_absorption': 'Medium-High',
+        'stiffness': 'Low-Medium',
+        'applications': 'Vibration damping, flexible structures'
+    },
+    'diamond': {
+        'name': 'Diamond',
+        'description': 'Diamond lattice with long slender members',
+        'energy_absorption': 'Medium',
+        'stiffness': 'Medium',
+        'applications': 'Lightweight panels, moderate loads'
+    }
+}
+
+STRETCHING_CELL_TYPES = {
+    'octet': {
+        'name': 'Octet-Truss',
+        'description': 'Octahedral-tetrahedral truss - maximum stiffness',
+        'energy_absorption': 'Low',
+        'stiffness': 'Very High',
+        'applications': 'Load-bearing structures, aerospace'
+    },
+    'cubic': {
+        'name': 'Cubic (BCC)',
+        'description': 'Body-centered cubic - isotropic properties',
+        'energy_absorption': 'Low',
+        'stiffness': 'High',
+        'applications': 'General structural applications'
+    },
+    'kelvin': {
+        'name': 'Kelvin Cell',
+        'description': 'Tetrakaidecahedron - space-filling',
+        'energy_absorption': 'Low-Medium',
+        'stiffness': 'High',
+        'applications': 'Uniform load distribution'
+    },
+    'pyramidal': {
+        'name': 'Pyramidal',
+        'description': 'Pyramid lattice with tetrahedral geometry',
+        'energy_absorption': 'Low',
+        'stiffness': 'Very High',
+        'applications': 'Sandwich panels, high-strength cores'
+    },
+    'isotruss': {
+        'name': 'IsoTruss',
+        'description': 'Triangulated space-frame - optimal efficiency',
+        'energy_absorption': 'Low',
+        'stiffness': 'Very High',
+        'applications': 'Aerospace, rocket fairings'
+    }
+}
 
 # ============================================
 # UTILITY FUNCTIONS
@@ -239,6 +313,160 @@ def create_honeycomb_cell(center, size, color):
     
     return traces
 
+def create_auxetic_cell(center, size, color):
+    """Create an auxetic (re-entrant) structure"""
+    traces = []
+    r_outer = size / 2.8
+    r_inner = size / 5
+    angle_offset = np.pi / 6
+    
+    # Re-entrant honeycomb structure
+    heights = [-size/2, -size/4, 0, size/4, size/2]
+    
+    for h in heights:
+        for i in range(6):
+            angle = i * np.pi / 3
+            
+            # Outer vertices
+            x_out1 = center[0] + r_outer * np.cos(angle)
+            y_out1 = center[1] + r_outer * np.sin(angle)
+            
+            # Inner vertices (re-entrant)
+            x_in = center[0] + r_inner * np.cos(angle + angle_offset)
+            y_in = center[1] + r_inner * np.sin(angle + angle_offset)
+            
+            # Connect outer to inner
+            traces.append(go.Scatter3d(
+                x=[x_out1, x_in],
+                y=[y_out1, y_in],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=7),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    # Vertical connections
+    for i in range(6):
+        angle = i * np.pi / 3
+        x = center[0] + r_outer * np.cos(angle)
+        y = center[1] + r_outer * np.sin(angle)
+        
+        traces.append(go.Scatter3d(
+            x=[x, x],
+            y=[y, y],
+            z=[center[2] - size/2, center[2] + size/2],
+            mode='lines',
+            line=dict(color=color, width=7),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_chiral_cell(center, size, color):
+    """Create a chiral structure with rotating nodes"""
+    traces = []
+    n_nodes = 4
+    radius = size / 3.5
+    node_size = size / 12
+    
+    # Create chiral nodes at different heights
+    heights = [-size/2, 0, size/2]
+    
+    for idx, h in enumerate(heights):
+        rotation = idx * np.pi / 8  # Rotate each layer
+        
+        for i in range(n_nodes):
+            angle = i * 2 * np.pi / n_nodes + rotation
+            angle_next = (i + 1) * 2 * np.pi / n_nodes + rotation
+            
+            x1 = center[0] + radius * np.cos(angle)
+            y1 = center[1] + radius * np.sin(angle)
+            x2 = center[0] + radius * np.cos(angle_next)
+            y2 = center[1] + radius * np.sin(angle_next)
+            
+            # Tangent connections
+            mid_angle = angle + np.pi / (2 * n_nodes)
+            x_mid = center[0] + (radius - node_size) * np.cos(mid_angle)
+            y_mid = center[1] + (radius - node_size) * np.sin(mid_angle)
+            
+            traces.append(go.Scatter3d(
+                x=[x1, x_mid],
+                y=[y1, y_mid],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=7),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    # Vertical connections between layers
+    for i in range(n_nodes):
+        for h_idx in range(len(heights) - 1):
+            angle1 = i * 2 * np.pi / n_nodes + h_idx * np.pi / 8
+            angle2 = i * 2 * np.pi / n_nodes + (h_idx + 1) * np.pi / 8
+            
+            x1 = center[0] + radius * np.cos(angle1)
+            y1 = center[1] + radius * np.sin(angle1)
+            x2 = center[0] + radius * np.cos(angle2)
+            y2 = center[1] + radius * np.sin(angle2)
+            
+            traces.append(go.Scatter3d(
+                x=[x1, x2],
+                y=[y1, y2],
+                z=[center[2] + heights[h_idx], center[2] + heights[h_idx + 1]],
+                mode='lines',
+                line=dict(color=color, width=6),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    return traces
+
+def create_diamond_cell(center, size, color):
+    """Create a diamond lattice structure"""
+    traces = []
+    s = size / 2
+    
+    # Diamond lattice vertices
+    vertices = np.array([
+        [0, 0, 0],
+        [s, s, 0],
+        [s, 0, s],
+        [0, s, s],
+        [-s, -s, 0],
+        [-s, 0, -s],
+        [0, -s, -s],
+        [s, -s, 0],
+        [-s, 0, s],
+        [0, -s, s]
+    ]) + center
+    
+    # Diamond connections (slender beams)
+    connections = [
+        (0, 1), (0, 2), (0, 3),
+        (0, 4), (0, 5), (0, 6),
+        (1, 2), (2, 3), (3, 1),
+        (4, 5), (5, 6), (6, 4),
+        (7, 1), (8, 3), (9, 2)
+    ]
+    
+    for conn in connections:
+        if conn[0] < len(vertices) and conn[1] < len(vertices):
+            p1, p2 = vertices[conn[0]], vertices[conn[1]]
+            traces.append(go.Scatter3d(
+                x=[p1[0], p2[0]],
+                y=[p1[1], p2[1]],
+                z=[p1[2], p2[2]],
+                mode='lines',
+                line=dict(color=color, width=6),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    return traces
+
 def create_octet_truss_cell(center, size, color):
     """Create an octet-truss structure (stretching-dominated)"""
     traces = []
@@ -286,6 +514,187 @@ def create_octet_truss_cell(center, size, color):
     
     return traces
 
+def create_cubic_bcc_cell(center, size, color):
+    """Create a Body-Centered Cubic (BCC) structure"""
+    traces = []
+    s = size / 2
+    
+    # BCC vertices
+    vertices = np.array([
+        [-s, -s, -s], [s, -s, -s], [s, s, -s], [-s, s, -s],  # Bottom corners
+        [-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s],      # Top corners
+        [0, 0, 0]                                              # Body center
+    ]) + center
+    
+    # BCC connections - all corners to center
+    connections = [
+        (0, 8), (1, 8), (2, 8), (3, 8),
+        (4, 8), (5, 8), (6, 8), (7, 8),
+        # Edge connections for stability
+        (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom
+        (4, 5), (5, 6), (6, 7), (7, 4),  # Top
+        (0, 4), (1, 5), (2, 6), (3, 7),  # Vertical
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=9),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_kelvin_cell(center, size, color):
+    """Create a Kelvin cell (tetrakaidecahedron) structure"""
+    traces = []
+    s = size / 2.5
+    
+    # Kelvin cell vertices (14-faced polyhedron)
+    vertices = np.array([
+        # Square faces (6 vertices on each axis)
+        [-s, 0, 0], [s, 0, 0],
+        [0, -s, 0], [0, s, 0],
+        [0, 0, -s], [0, 0, s],
+        # Hexagonal faces (8 vertices at cube corners, scaled)
+        [-s*0.7, -s*0.7, -s*0.7], [s*0.7, -s*0.7, -s*0.7],
+        [s*0.7, s*0.7, -s*0.7], [-s*0.7, s*0.7, -s*0.7],
+        [-s*0.7, -s*0.7, s*0.7], [s*0.7, -s*0.7, s*0.7],
+        [s*0.7, s*0.7, s*0.7], [-s*0.7, s*0.7, s*0.7],
+    ]) + center
+    
+    # Kelvin cell connections
+    connections = [
+        # Square face connections
+        (0, 2), (0, 3), (0, 4), (0, 5),
+        (1, 2), (1, 3), (1, 4), (1, 5),
+        (2, 4), (2, 5), (3, 4), (3, 5),
+        # Hexagonal vertex connections
+        (6, 7), (7, 8), (8, 9), (9, 6),  # Bottom hex
+        (10, 11), (11, 12), (12, 13), (13, 10),  # Top hex
+        (6, 10), (7, 11), (8, 12), (9, 13),  # Vertical
+        # Connect to face centers
+        (0, 6), (0, 9), (0, 10), (0, 13),
+        (1, 7), (1, 8), (1, 11), (1, 12),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=8),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_pyramidal_cell(center, size, color):
+    """Create a pyramidal lattice structure"""
+    traces = []
+    s = size / 2
+    
+    # Pyramidal vertices
+    vertices = np.array([
+        # Bottom base
+        [-s, -s, -s], [s, -s, -s], [s, s, -s], [-s, s, -s],
+        # Top base  
+        [-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s],
+        # Pyramid apex points (middle of each face)
+        [0, 0, 0],  # Center
+        [0, 0, -s], [0, 0, s],  # Z-faces
+        [-s, 0, 0], [s, 0, 0],  # X-faces
+        [0, -s, 0], [0, s, 0],  # Y-faces
+    ]) + center
+    
+    # Pyramidal connections - tetrahedrons
+    connections = [
+        # Bottom pyramids
+        (0, 9), (1, 9), (2, 9), (3, 9),
+        (9, 13), (9, 14),
+        # Top pyramids
+        (4, 10), (5, 10), (6, 10), (7, 10),
+        (10, 13), (10, 14),
+        # Side pyramids
+        (0, 11), (3, 11), (4, 11), (7, 11),
+        (1, 12), (2, 12), (5, 12), (6, 12),
+        (0, 13), (1, 13), (4, 13), (5, 13),
+        (2, 14), (3, 14), (6, 14), (7, 14),
+        # Center connections
+        (8, 9), (8, 10), (8, 11), (8, 12), (8, 13), (8, 14),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=9),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_isotruss_cell(center, size, color):
+    """Create an IsoTruss structure (triangulated space-frame)"""
+    traces = []
+    s = size / 2
+    
+    # IsoTruss vertices - highly triangulated
+    vertices = np.array([
+        # Outer vertices
+        [-s, -s, -s], [s, -s, -s], [s, s, -s], [-s, s, -s],
+        [-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s],
+        # Mid-edge vertices
+        [0, -s, -s], [s, 0, -s], [0, s, -s], [-s, 0, -s],  # Bottom edges
+        [0, -s, s], [s, 0, s], [0, s, s], [-s, 0, s],      # Top edges
+        [-s, -s, 0], [s, -s, 0], [s, s, 0], [-s, s, 0],    # Middle edges
+    ]) + center
+    
+    # IsoTruss connections - maximize triangulation
+    connections = [
+        # Bottom triangulation
+        (0, 8), (8, 1), (1, 9), (9, 2), (2, 10), (10, 3), (3, 11), (11, 0),
+        (8, 9), (9, 10), (10, 11), (11, 8),
+        # Top triangulation
+        (4, 12), (12, 5), (5, 13), (13, 6), (6, 14), (14, 7), (7, 15), (15, 4),
+        (12, 13), (13, 14), (14, 15), (15, 12),
+        # Vertical triangulation
+        (0, 16), (16, 4), (1, 17), (17, 5), (2, 18), (18, 6), (3, 19), (19, 7),
+        (16, 17), (17, 18), (18, 19), (19, 16),
+        # Diagonal bracing
+        (8, 16), (9, 17), (10, 18), (11, 19),
+        (12, 16), (13, 17), (14, 18), (15, 19),
+        # Cross-diagonal bracing
+        (0, 17), (1, 16), (2, 19), (3, 18),
+        (4, 17), (5, 16), (6, 19), (7, 18),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=8),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
 def visualize_3d_pattern(pattern, cell_size=1.0, show_legend=True):
     """Create 3D visualization of the pattern"""
     grid_size = pattern.shape[0]
@@ -294,6 +703,26 @@ def visualize_3d_pattern(pattern, cell_size=1.0, show_legend=True):
     bending_added = False
     stretching_added = False
     
+    # Get selected cell types
+    bending_type = st.session_state.selected_bending_cell
+    stretching_type = st.session_state.selected_stretching_cell
+    
+    # Cell type function mapping
+    bending_functions = {
+        'honeycomb': create_honeycomb_cell,
+        'auxetic': create_auxetic_cell,
+        'chiral': create_chiral_cell,
+        'diamond': create_diamond_cell
+    }
+    
+    stretching_functions = {
+        'octet': create_octet_truss_cell,
+        'cubic': create_cubic_bcc_cell,
+        'kelvin': create_kelvin_cell,
+        'pyramidal': create_pyramidal_cell,
+        'isotruss': create_isotruss_cell
+    }
+    
     # Generate lattice structures
     for i in range(grid_size):
         for j in range(grid_size):
@@ -301,19 +730,21 @@ def visualize_3d_pattern(pattern, cell_size=1.0, show_legend=True):
                 center = np.array([i * cell_size, j * cell_size, k * cell_size])
                 
                 if pattern[i, j, k] == 1:  # Bending-dominated
-                    traces = create_honeycomb_cell(center, cell_size, COLOR_BENDING)
+                    create_func = bending_functions.get(bending_type, create_honeycomb_cell)
+                    traces = create_func(center, cell_size, COLOR_BENDING)
                     for trace in traces:
                         if not bending_added and show_legend:
                             trace.showlegend = True
-                            trace.name = 'Bending-Dominated (Honeycomb)'
+                            trace.name = f'Bending: {BENDING_CELL_TYPES[bending_type]["name"]}'
                             bending_added = True
                         fig.add_trace(trace)
                 else:  # Stretching-dominated
-                    traces = create_octet_truss_cell(center, cell_size, COLOR_STRETCHING)
+                    create_func = stretching_functions.get(stretching_type, create_octet_truss_cell)
+                    traces = create_func(center, cell_size, COLOR_STRETCHING)
                     for trace in traces:
                         if not stretching_added and show_legend:
                             trace.showlegend = True
-                            trace.name = 'Stretching-Dominated (Octet-Truss)'
+                            trace.name = f'Stretching: {STRETCHING_CELL_TYPES[stretching_type]["name"]}'
                             stretching_added = True
                         fig.add_trace(trace)
     
@@ -445,7 +876,7 @@ def generate_pattern_presets(grid_size):
 
 def main():
     # Header
-    st.markdown('<div class="main-header">Hybrid Architectured Material Designer<br>Powered by Gemini AI</div>', 
+    st.markdown('<div class="main-header">Hybrid Architected Material Designer<br>Powered by Agentic AI</div>', 
                 unsafe_allow_html=True)
     
     # Sidebar
@@ -485,18 +916,49 @@ def main():
         # Unit cell selection
         st.markdown("### Unit Cell Types")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Bending**")
-            st.markdown(f'<div style="background-color: {COLOR_BENDING}; height: 30px; border-radius: 5px;"></div>', 
-                       unsafe_allow_html=True)
-            st.caption("Honeycomb (Flexible)")
+        st.markdown("#### Bending-Dominated (Sky Blue)")
+        selected_bending = st.selectbox(
+            "Select Bending Cell Type",
+            options=list(BENDING_CELL_TYPES.keys()),
+            format_func=lambda x: BENDING_CELL_TYPES[x]['name'],
+            index=list(BENDING_CELL_TYPES.keys()).index(st.session_state.selected_bending_cell),
+            key='bending_selector'
+        )
         
-        with col2:
-            st.markdown("**Stretching**")
-            st.markdown(f'<div style="background-color: {COLOR_STRETCHING}; height: 30px; border-radius: 5px;"></div>', 
-                       unsafe_allow_html=True)
-            st.caption("Octet-Truss (Stiff)")
+        if selected_bending != st.session_state.selected_bending_cell:
+            st.session_state.selected_bending_cell = selected_bending
+        
+        # Show bending cell info
+        bending_info = BENDING_CELL_TYPES[selected_bending]
+        st.markdown(f'<div style="background-color: {COLOR_BENDING}; padding: 10px; border-radius: 5px; margin-bottom: 10px;">'
+                   f'<strong>{bending_info["name"]}</strong><br>'
+                   f'<small>{bending_info["description"]}</small><br>'
+                   f'<small>Stiffness: {bending_info["stiffness"]}</small><br>'
+                   f'<small>Energy Absorption: {bending_info["energy_absorption"]}</small>'
+                   f'</div>', 
+                   unsafe_allow_html=True)
+        
+        st.markdown("#### Stretching-Dominated (Red)")
+        selected_stretching = st.selectbox(
+            "Select Stretching Cell Type",
+            options=list(STRETCHING_CELL_TYPES.keys()),
+            format_func=lambda x: STRETCHING_CELL_TYPES[x]['name'],
+            index=list(STRETCHING_CELL_TYPES.keys()).index(st.session_state.selected_stretching_cell),
+            key='stretching_selector'
+        )
+        
+        if selected_stretching != st.session_state.selected_stretching_cell:
+            st.session_state.selected_stretching_cell = selected_stretching
+        
+        # Show stretching cell info
+        stretching_info = STRETCHING_CELL_TYPES[selected_stretching]
+        st.markdown(f'<div style="background-color: {COLOR_STRETCHING}; padding: 10px; border-radius: 5px; color: white;">'
+                   f'<strong>{stretching_info["name"]}</strong><br>'
+                   f'<small>{stretching_info["description"]}</small><br>'
+                   f'<small>Stiffness: {stretching_info["stiffness"]}</small><br>'
+                   f'<small>Energy Absorption: {stretching_info["energy_absorption"]}</small>'
+                   f'</div>', 
+                   unsafe_allow_html=True)
         
         st.markdown("---")
         
