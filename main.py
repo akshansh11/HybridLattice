@@ -8,7 +8,7 @@ import re
 
 # Page configuration
 st.set_page_config(
-    page_title="HybridLattice: An Agentic Ai model to create hybrid architected materials",
+    page_title="HybridLattice: An Agentic AI model to create hybrid architected materials",
     page_icon="⚛",
     layout="wide",
     initial_sidebar_state="expanded"
