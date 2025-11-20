@@ -47,7 +47,7 @@ An advanced AI-powered web application for designing and analyzing hybrid lattic
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/HybridLattice.git
+git clone https://github.com/akshansh11/HybridLattice.git
 cd HybridLattice
 ```
 
