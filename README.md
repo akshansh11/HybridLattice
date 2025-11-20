@@ -302,7 +302,7 @@ This project builds upon decades of research in cellular solids and metamaterial
 
 For questions, suggestions, or collaboration inquiries:
 - **GitHub Issues**: [Just mail me]
-- **Email**: [akshanshmishra11@gmail.con]
+- **Email**: [akshanshmishra11@gmail.com]
 - **Website**: [akshanshmishra.com]
 
 ---
