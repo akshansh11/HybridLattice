@@ -72,7 +72,7 @@ google-generativeai>=0.3.0
 
 1. **Launch the Streamlit app**
 ```bash
-streamlit run app.py
+streamlit run main.py
 ```
 
 2. **Configure Gemini API**
