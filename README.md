@@ -97,7 +97,7 @@ streamlit run main.py
 
 ```
 HybridLattice/
-├── app.py                      # Main application file
+├── main.py                     # Main application file
 ├── requirements.txt            # Python dependencies
 ├── README.md                   # This file
 ├── LICENSE                     # CC BY-NC-ND 4.0 License
