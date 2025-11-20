@@ -8,7 +8,7 @@ import re
 
 # Page configuration
 st.set_page_config(
-    page_title="HybridLattice",
+    page_title="HybridLattice: An Agentic AI model for creating Hybrid architected materials",
     page_icon="⚛",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -145,6 +145,34 @@ BENDING_CELL_TYPES = {
         'energy_absorption': 'Medium',
         'stiffness': 'Medium',
         'applications': 'Lightweight panels, moderate loads'
+    },
+    'hexagonal_prism': {
+        'name': 'Hexagonal Prism',
+        'description': 'Vertical hexagonal columns with cross-bracing',
+        'energy_absorption': 'High',
+        'stiffness': 'Low-Medium',
+        'applications': 'Column structures, vertical loads'
+    },
+    'star_honeycomb': {
+        'name': 'Star Honeycomb',
+        'description': 'Star-shaped cells with enhanced compliance',
+        'energy_absorption': 'Very High',
+        'stiffness': 'Very Low',
+        'applications': 'Maximum energy absorption, soft robotics'
+    },
+    'triangular_honeycomb': {
+        'name': 'Triangular Honeycomb',
+        'description': 'Triangular cells - directional flexibility',
+        'energy_absorption': 'Medium-High',
+        'stiffness': 'Low-Medium',
+        'applications': 'Anisotropic structures, directional damping'
+    },
+    'kagome': {
+        'name': 'Kagome',
+        'description': 'Japanese basket weave pattern - low density',
+        'energy_absorption': 'Medium',
+        'stiffness': 'Low',
+        'applications': 'Ultra-lightweight, thermal management'
     }
 }
 
@@ -183,6 +211,55 @@ STRETCHING_CELL_TYPES = {
         'energy_absorption': 'Low',
         'stiffness': 'Very High',
         'applications': 'Aerospace, rocket fairings'
+    },
+    'fcc': {
+        'name': 'FCC (Face-Centered Cubic)',
+        'description': 'Face-centered cubic - high packing efficiency',
+        'energy_absorption': 'Low',
+        'stiffness': 'Very High',
+        'applications': 'Dense structures, metallic foams'
+    },
+    'rhombic_dodecahedron': {
+        'name': 'Rhombic Dodecahedron',
+        'description': 'Space-filling with 12 faces - optimal geometry',
+        'energy_absorption': 'Low',
+        'stiffness': 'High',
+        'applications': 'Architectural structures, space frames'
+    },
+    'truncated_cube': {
+        'name': 'Truncated Cube',
+        'description': 'Archimedean solid - balanced strut layout',
+        'energy_absorption': 'Low-Medium',
+        'stiffness': 'High',
+        'applications': 'Modular structures, building blocks'
+    },
+    'schwarz_primitive': {
+        'name': 'Schwarz Primitive',
+        'description': 'Triply periodic minimal surface - efficient',
+        'energy_absorption': 'Low',
+        'stiffness': 'Very High',
+        'applications': 'Heat exchangers, bio-scaffolds'
+    },
+    'gyroid': {
+        'name': 'Gyroid',
+        'description': 'Triply periodic minimal surface - no straight lines',
+        'energy_absorption': 'Low-Medium',
+        'stiffness': 'High',
+        'applications': 'Fluid flow, biomedical implants'
+    },
+    'tetrahedral': {
+        'name': 'Tetrahedral',
+        'description': 'Pure tetrahedral truss - simple and strong',
+        'energy_absorption': 'Low',
+        'stiffness': 'Very High',
+        'applications': 'Simple structures, educational models'
+    },
+    'cubic_center': {
+        'name': 'Cubic Center Cross',
+        'description': 'Cubic with center cross-bracing - enhanced',
+        'energy_absorption': 'Low',
+        'stiffness': 'Very High',
+        'applications': 'Reinforced structures, bridges'
     }
 }
 
@@ -467,6 +544,249 @@ def create_diamond_cell(center, size, color):
     
     return traces
 
+def create_hexagonal_prism_cell(center, size, color):
+    """Create a hexagonal prism structure"""
+    traces = []
+    n_sides = 6
+    radius = size / 2.8
+    
+    # Vertical columns at vertices
+    for i in range(n_sides):
+        angle = i * 2 * np.pi / n_sides
+        x = center[0] + radius * np.cos(angle)
+        y = center[1] + radius * np.sin(angle)
+        
+        traces.append(go.Scatter3d(
+            x=[x, x],
+            y=[y, y],
+            z=[center[2] - size/2, center[2] + size/2],
+            mode='lines',
+            line=dict(color=color, width=9),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    # Horizontal bracing at multiple levels
+    heights = [-size/2, -size/4, 0, size/4, size/2]
+    for h in heights:
+        for i in range(n_sides):
+            angle1 = i * 2 * np.pi / n_sides
+            angle2 = (i + 1) * 2 * np.pi / n_sides
+            
+            x1 = center[0] + radius * np.cos(angle1)
+            y1 = center[1] + radius * np.sin(angle1)
+            x2 = center[0] + radius * np.cos(angle2)
+            y2 = center[1] + radius * np.sin(angle2)
+            
+            traces.append(go.Scatter3d(
+                x=[x1, x2],
+                y=[y1, y2],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=7),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+        
+        # Cross-bracing at each level
+        if abs(h) < size/2:
+            for i in range(n_sides):
+                angle = i * 2 * np.pi / n_sides
+                x = center[0] + radius * np.cos(angle)
+                y = center[1] + radius * np.sin(angle)
+                
+                traces.append(go.Scatter3d(
+                    x=[center[0], x],
+                    y=[center[1], y],
+                    z=[center[2] + h, center[2] + h],
+                    mode='lines',
+                    line=dict(color=color, width=5),
+                    hoverinfo='skip',
+                    showlegend=False
+                ))
+    
+    return traces
+
+def create_star_honeycomb_cell(center, size, color):
+    """Create a star-shaped honeycomb structure"""
+    traces = []
+    n_points = 8
+    r_outer = size / 2.5
+    r_inner = size / 5
+    
+    # Create star pattern at multiple heights
+    heights = [-size/2, -size/3, -size/6, 0, size/6, size/3, size/2]
+    
+    for h in heights:
+        for i in range(n_points):
+            angle_out = i * 2 * np.pi / n_points
+            angle_in = (i + 0.5) * 2 * np.pi / n_points
+            
+            # Outer points
+            x_out = center[0] + r_outer * np.cos(angle_out)
+            y_out = center[1] + r_outer * np.sin(angle_out)
+            
+            # Inner points
+            x_in = center[0] + r_inner * np.cos(angle_in)
+            y_in = center[1] + r_inner * np.sin(angle_in)
+            
+            # Star rays
+            traces.append(go.Scatter3d(
+                x=[x_out, x_in],
+                y=[y_out, y_in],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=6),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    # Vertical connections at outer points
+    for i in range(n_points):
+        angle = i * 2 * np.pi / n_points
+        x = center[0] + r_outer * np.cos(angle)
+        y = center[1] + r_outer * np.sin(angle)
+        
+        traces.append(go.Scatter3d(
+            x=[x, x],
+            y=[y, y],
+            z=[center[2] - size/2, center[2] + size/2],
+            mode='lines',
+            line=dict(color=color, width=6),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_triangular_honeycomb_cell(center, size, color):
+    """Create a triangular honeycomb structure"""
+    traces = []
+    n_sides = 3
+    radius = size / 2.5
+    
+    # Vertical beams at triangle vertices
+    for i in range(n_sides):
+        angle = i * 2 * np.pi / n_sides
+        x = center[0] + radius * np.cos(angle)
+        y = center[1] + radius * np.sin(angle)
+        
+        traces.append(go.Scatter3d(
+            x=[x, x],
+            y=[y, y],
+            z=[center[2] - size/2, center[2] + size/2],
+            mode='lines',
+            line=dict(color=color, width=8),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    # Horizontal triangular rings
+    heights = [-size/2, -size/3, -size/6, 0, size/6, size/3, size/2]
+    for h in heights:
+        for i in range(n_sides):
+            angle1 = i * 2 * np.pi / n_sides
+            angle2 = (i + 1) * 2 * np.pi / n_sides
+            
+            x1 = center[0] + radius * np.cos(angle1)
+            y1 = center[1] + radius * np.sin(angle1)
+            x2 = center[0] + radius * np.cos(angle2)
+            y2 = center[1] + radius * np.sin(angle2)
+            
+            traces.append(go.Scatter3d(
+                x=[x1, x2],
+                y=[y1, y2],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=7),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    # Alternating internal bracing
+    for idx, h in enumerate(heights[::2]):
+        for i in range(n_sides):
+            angle = i * 2 * np.pi / n_sides
+            x = center[0] + radius * np.cos(angle)
+            y = center[1] + radius * np.sin(angle)
+            
+            traces.append(go.Scatter3d(
+                x=[center[0], x],
+                y=[center[1], y],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=5),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    return traces
+
+def create_kagome_cell(center, size, color):
+    """Create a Kagome lattice structure"""
+    traces = []
+    radius = size / 2.5
+    
+    # Kagome pattern - triangular lattice with removed center
+    angles = [0, 2*np.pi/3, 4*np.pi/3]
+    
+    # Multiple layers
+    heights = [-size/2, -size/4, 0, size/4, size/2]
+    
+    for h in heights:
+        # Outer triangles
+        for i in range(3):
+            angle1 = angles[i]
+            angle2 = angles[(i + 1) % 3]
+            
+            x1 = center[0] + radius * np.cos(angle1)
+            y1 = center[1] + radius * np.sin(angle1)
+            x2 = center[0] + radius * np.cos(angle2)
+            y2 = center[1] + radius * np.sin(angle2)
+            
+            # Edge connection
+            traces.append(go.Scatter3d(
+                x=[x1, x2],
+                y=[y1, y2],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=6),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+            
+            # Mid-points for Kagome pattern
+            mid_angle = (angle1 + angle2) / 2
+            x_mid = center[0] + radius * 0.6 * np.cos(mid_angle)
+            y_mid = center[1] + radius * 0.6 * np.sin(mid_angle)
+            
+            traces.append(go.Scatter3d(
+                x=[x1, x_mid],
+                y=[y1, y_mid],
+                z=[center[2] + h, center[2] + h],
+                mode='lines',
+                line=dict(color=color, width=5),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    # Vertical connections
+    for angle in angles:
+        x = center[0] + radius * np.cos(angle)
+        y = center[1] + radius * np.sin(angle)
+        
+        traces.append(go.Scatter3d(
+            x=[x, x],
+            y=[y, y],
+            z=[center[2] - size/2, center[2] + size/2],
+            mode='lines',
+            line=dict(color=color, width=6),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
 def create_octet_truss_cell(center, size, color):
     """Create an octet-truss structure (stretching-dominated)"""
     traces = []
@@ -695,6 +1015,335 @@ def create_isotruss_cell(center, size, color):
     
     return traces
 
+def create_fcc_cell(center, size, color):
+    """Create a Face-Centered Cubic (FCC) structure"""
+    traces = []
+    s = size / 2
+    
+    # FCC vertices - corners + face centers
+    vertices = np.array([
+        # Corner vertices
+        [-s, -s, -s], [s, -s, -s], [s, s, -s], [-s, s, -s],
+        [-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s],
+        # Face center vertices
+        [0, 0, -s], [0, 0, s],    # Z faces
+        [-s, 0, 0], [s, 0, 0],    # X faces
+        [0, -s, 0], [0, s, 0],    # Y faces
+    ]) + center
+    
+    # FCC connections
+    connections = [
+        # Bottom face to face centers
+        (0, 8), (1, 8), (2, 8), (3, 8),
+        # Top face to face centers
+        (4, 9), (5, 9), (6, 9), (7, 9),
+        # X face connections
+        (0, 10), (3, 10), (4, 10), (7, 10),
+        (1, 11), (2, 11), (5, 11), (6, 11),
+        # Y face connections
+        (0, 12), (1, 12), (4, 12), (5, 12),
+        (2, 13), (3, 13), (6, 13), (7, 13),
+        # Vertical edges
+        (0, 4), (1, 5), (2, 6), (3, 7),
+        # Face center to face center
+        (8, 12), (8, 13), (9, 12), (9, 13),
+        (8, 10), (8, 11), (9, 10), (9, 11),
+        (10, 12), (11, 12), (10, 13), (11, 13),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=9),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_rhombic_dodecahedron_cell(center, size, color):
+    """Create a Rhombic Dodecahedron structure"""
+    traces = []
+    s = size / 2.2
+    
+    # Rhombic dodecahedron vertices (14 vertices)
+    vertices = np.array([
+        # Face centers of cube
+        [s, 0, 0], [-s, 0, 0], [0, s, 0], [0, -s, 0], [0, 0, s], [0, 0, -s],
+        # Edge midpoints
+        [s*0.7, s*0.7, 0], [s*0.7, -s*0.7, 0], [-s*0.7, s*0.7, 0], [-s*0.7, -s*0.7, 0],
+        [s*0.7, 0, s*0.7], [s*0.7, 0, -s*0.7], [-s*0.7, 0, s*0.7], [-s*0.7, 0, -s*0.7],
+        [0, s*0.7, s*0.7], [0, s*0.7, -s*0.7], [0, -s*0.7, s*0.7], [0, -s*0.7, -s*0.7],
+    ]) + center
+    
+    # Rhombic faces connections
+    connections = [
+        (0, 6), (0, 7), (0, 10), (0, 11),
+        (1, 8), (1, 9), (1, 12), (1, 13),
+        (2, 6), (2, 8), (2, 14), (2, 15),
+        (3, 7), (3, 9), (3, 16), (3, 17),
+        (4, 10), (4, 12), (4, 14), (4, 16),
+        (5, 11), (5, 13), (5, 15), (5, 17),
+        # Edge connections
+        (6, 10), (6, 14), (7, 10), (7, 16),
+        (8, 12), (8, 14), (9, 12), (9, 16),
+        (11, 15), (10, 14), (13, 15), (12, 16),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=8),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_truncated_cube_cell(center, size, color):
+    """Create a Truncated Cube structure"""
+    traces = []
+    s = size / 2.5
+    t = s * 0.6  # Truncation parameter
+    
+    # Truncated cube vertices (24 vertices)
+    vertices = np.array([
+        # Truncated corners
+        [t, s, s], [s, t, s], [s, s, t],
+        [-t, s, s], [-s, t, s], [-s, s, t],
+        [t, -s, s], [s, -t, s], [s, -s, t],
+        [-t, -s, s], [-s, -t, s], [-s, -s, t],
+        [t, s, -s], [s, t, -s], [s, s, -t],
+        [-t, s, -s], [-s, t, -s], [-s, s, -t],
+        [t, -s, -s], [s, -t, -s], [s, -s, -t],
+        [-t, -s, -s], [-s, -t, -s], [-s, -s, -t],
+    ]) + center
+    
+    # Truncated cube connections
+    connections = [
+        # Top face octagon
+        (0, 1), (1, 2), (2, 14), (14, 13), (13, 12), (12, 15), (15, 3), (3, 0),
+        # Bottom face octagon
+        (6, 7), (7, 8), (8, 20), (20, 19), (19, 18), (18, 21), (21, 9), (9, 6),
+        # Vertical edges
+        (0, 6), (1, 7), (2, 8), (3, 9), (12, 18), (13, 19), (14, 20), (15, 21),
+        # Triangular faces
+        (4, 3), (4, 5), (5, 3), (10, 9), (10, 11), (11, 9),
+        (16, 15), (16, 17), (17, 15), (22, 21), (22, 23), (23, 21),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=8),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_schwarz_primitive_cell(center, size, color):
+    """Create a Schwarz Primitive (TPMS) structure"""
+    traces = []
+    s = size / 2
+    
+    # Schwarz P surface approximation with struts
+    # Creating a mesh-like structure
+    n_div = 4
+    step = size / n_div
+    
+    # Create grid points
+    for i in range(n_div + 1):
+        for j in range(n_div + 1):
+            for k in range(n_div + 1):
+                x = center[0] - s + i * step
+                y = center[1] - s + j * step
+                z = center[2] - s + k * step
+                
+                # Connect in X direction
+                if i < n_div and (i + j + k) % 2 == 0:
+                    x_next = x + step
+                    traces.append(go.Scatter3d(
+                        x=[x, x_next],
+                        y=[y, y],
+                        z=[z, z],
+                        mode='lines',
+                        line=dict(color=color, width=7),
+                        hoverinfo='skip',
+                        showlegend=False
+                    ))
+                
+                # Connect in Y direction
+                if j < n_div and (i + j + k) % 2 == 0:
+                    y_next = y + step
+                    traces.append(go.Scatter3d(
+                        x=[x, x],
+                        y=[y, y_next],
+                        z=[z, z],
+                        mode='lines',
+                        line=dict(color=color, width=7),
+                        hoverinfo='skip',
+                        showlegend=False
+                    ))
+                
+                # Connect in Z direction
+                if k < n_div and (i + j + k) % 2 == 0:
+                    z_next = z + step
+                    traces.append(go.Scatter3d(
+                        x=[x, x],
+                        y=[y, y],
+                        z=[z, z_next],
+                        mode='lines',
+                        line=dict(color=color, width=7),
+                        hoverinfo='skip',
+                        showlegend=False
+                    ))
+    
+    return traces
+
+def create_gyroid_cell(center, size, color):
+    """Create a Gyroid (TPMS) structure"""
+    traces = []
+    s = size / 2
+    
+    # Gyroid structure approximation
+    n_points = 6
+    radius = size / 3
+    
+    # Create helical-like structure
+    for layer in range(3):
+        z = center[2] + s * (layer / 2 - 0.5)
+        rotation = layer * np.pi / 3
+        
+        for i in range(n_points):
+            angle1 = i * 2 * np.pi / n_points + rotation
+            angle2 = (i + 1) * 2 * np.pi / n_points + rotation
+            
+            x1 = center[0] + radius * np.cos(angle1)
+            y1 = center[1] + radius * np.sin(angle1)
+            x2 = center[0] + radius * np.cos(angle2)
+            y2 = center[1] + radius * np.sin(angle2)
+            
+            # Horizontal connections
+            traces.append(go.Scatter3d(
+                x=[x1, x2],
+                y=[y1, y2],
+                z=[z, z],
+                mode='lines',
+                line=dict(color=color, width=7),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+            
+            # Vertical helical connections
+            if layer < 2:
+                z_next = center[2] + s * ((layer + 1) / 2 - 0.5)
+                angle_next = angle1 + np.pi / 3
+                x_next = center[0] + radius * np.cos(angle_next)
+                y_next = center[1] + radius * np.sin(angle_next)
+                
+                traces.append(go.Scatter3d(
+                    x=[x1, x_next],
+                    y=[y1, y_next],
+                    z=[z, z_next],
+                    mode='lines',
+                    line=dict(color=color, width=7),
+                    hoverinfo='skip',
+                    showlegend=False
+                ))
+    
+    return traces
+
+def create_tetrahedral_cell(center, size, color):
+    """Create a pure Tetrahedral structure"""
+    traces = []
+    s = size / 2
+    
+    # Tetrahedral vertices
+    vertices = np.array([
+        [-s, -s, -s], [s, s, -s], [s, -s, s], [-s, s, s],  # Tetrahedral vertices
+        [0, 0, 0],  # Center
+    ]) + center
+    
+    # Tetrahedral connections - all edges
+    connections = [
+        (0, 1), (0, 2), (0, 3),
+        (1, 2), (1, 3), (2, 3),
+        # To center for reinforcement
+        (0, 4), (1, 4), (2, 4), (3, 4),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=10),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
+def create_cubic_center_cross_cell(center, size, color):
+    """Create a Cubic with Center Cross-bracing structure"""
+    traces = []
+    s = size / 2
+    
+    # Cubic vertices
+    vertices = np.array([
+        [-s, -s, -s], [s, -s, -s], [s, s, -s], [-s, s, -s],
+        [-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s],
+        [0, 0, 0],  # Center
+        # Face centers
+        [0, 0, -s], [0, 0, s],
+        [-s, 0, 0], [s, 0, 0],
+        [0, -s, 0], [0, s, 0],
+    ]) + center
+    
+    # Enhanced cubic connections with cross-bracing
+    connections = [
+        # Cube edges
+        (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom
+        (4, 5), (5, 6), (6, 7), (7, 4),  # Top
+        (0, 4), (1, 5), (2, 6), (3, 7),  # Vertical
+        # Face diagonals through center
+        (0, 8), (1, 8), (2, 8), (3, 8),
+        (4, 8), (5, 8), (6, 8), (7, 8),
+        # Cross-bracing through face centers
+        (9, 8), (10, 8), (11, 8), (12, 8), (13, 8), (14, 8),
+        (0, 9), (1, 9), (2, 9), (3, 9),
+        (4, 10), (5, 10), (6, 10), (7, 10),
+    ]
+    
+    for conn in connections:
+        p1, p2 = vertices[conn[0]], vertices[conn[1]]
+        traces.append(go.Scatter3d(
+            x=[p1[0], p2[0]],
+            y=[p1[1], p2[1]],
+            z=[p1[2], p2[2]],
+            mode='lines',
+            line=dict(color=color, width=9),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    return traces
+
 def visualize_3d_pattern(pattern, cell_size=1.0, show_legend=True):
     """Create 3D visualization of the pattern"""
     grid_size = pattern.shape[0]
@@ -712,7 +1361,11 @@ def visualize_3d_pattern(pattern, cell_size=1.0, show_legend=True):
         'honeycomb': create_honeycomb_cell,
         'auxetic': create_auxetic_cell,
         'chiral': create_chiral_cell,
-        'diamond': create_diamond_cell
+        'diamond': create_diamond_cell,
+        'hexagonal_prism': create_hexagonal_prism_cell,
+        'star_honeycomb': create_star_honeycomb_cell,
+        'triangular_honeycomb': create_triangular_honeycomb_cell,
+        'kagome': create_kagome_cell
     }
     
     stretching_functions = {
@@ -720,7 +1373,14 @@ def visualize_3d_pattern(pattern, cell_size=1.0, show_legend=True):
         'cubic': create_cubic_bcc_cell,
         'kelvin': create_kelvin_cell,
         'pyramidal': create_pyramidal_cell,
-        'isotruss': create_isotruss_cell
+        'isotruss': create_isotruss_cell,
+        'fcc': create_fcc_cell,
+        'rhombic_dodecahedron': create_rhombic_dodecahedron_cell,
+        'truncated_cube': create_truncated_cube_cell,
+        'schwarz_primitive': create_schwarz_primitive_cell,
+        'gyroid': create_gyroid_cell,
+        'tetrahedral': create_tetrahedral_cell,
+        'cubic_center': create_cubic_center_cross_cell
     }
     
     # Generate lattice structures
@@ -874,10 +1534,140 @@ def generate_pattern_presets(grid_size):
 # MAIN APP
 # ============================================
 
+def create_demo_visualization():
+    """Create an attractive demo visualization of 4x4x4 hybrid lattice"""
+    # Create a visually appealing demo pattern
+    demo_pattern = np.ones((4, 4, 4), dtype=int)
+    
+    # Create an interesting pattern (core-shell with checkerboard)
+    for i in range(4):
+        for j in range(4):
+            for k in range(4):
+                # Outer shell is stretching-dominated
+                if i == 0 or i == 3 or j == 0 or j == 3 or k == 0 or k == 3:
+                    demo_pattern[i, j, k] = 2
+                # Inner checkerboard
+                elif (i + j + k) % 2 == 0:
+                    demo_pattern[i, j, k] = 2
+    
+    # Create figure
+    fig = go.Figure()
+    
+    bending_added = False
+    stretching_added = False
+    
+    # Generate lattice structures for demo
+    for i in range(4):
+        for j in range(4):
+            for k in range(4):
+                center = np.array([i, j, k])
+                
+                if demo_pattern[i, j, k] == 1:  # Bending-dominated
+                    traces = create_honeycomb_cell(center, 1.0, COLOR_BENDING)
+                    for trace in traces:
+                        if not bending_added:
+                            trace.showlegend = True
+                            trace.name = 'Bending: Honeycomb'
+                            bending_added = True
+                        fig.add_trace(trace)
+                else:  # Stretching-dominated
+                    traces = create_octet_truss_cell(center, 1.0, COLOR_STRETCHING)
+                    for trace in traces:
+                        if not stretching_added:
+                            trace.showlegend = True
+                            trace.name = 'Stretching: Octet-Truss'
+                            stretching_added = True
+                        fig.add_trace(trace)
+    
+    # Update layout for attractive display
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(
+                title='',
+                showbackground=True,
+                backgroundcolor="rgb(230, 230, 230)",
+                gridcolor="white",
+                showticklabels=False
+            ),
+            yaxis=dict(
+                title='',
+                showbackground=True,
+                backgroundcolor="rgb(230, 230, 230)",
+                gridcolor="white",
+                showticklabels=False
+            ),
+            zaxis=dict(
+                title='',
+                showbackground=True,
+                backgroundcolor="rgb(230, 230, 230)",
+                gridcolor="white",
+                showticklabels=False
+            ),
+            aspectmode='data',
+            camera=dict(
+                eye=dict(x=1.8, y=1.8, z=1.5),
+                center=dict(x=0, y=0, z=0),
+                up=dict(x=0, y=0, z=1)
+            )
+        ),
+        showlegend=True,
+        legend=dict(
+            x=0.7,
+            y=0.95,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="gray",
+            borderwidth=1
+        ),
+        height=450,
+        margin=dict(l=0, r=0, t=40, b=0),
+        paper_bgcolor='rgba(240, 245, 250, 0.5)',
+        plot_bgcolor='rgba(240, 245, 250, 0.5)',
+        title=dict(
+            text="<b>4×4×4 Hybrid Lattice Preview</b><br><sub>Core-Shell Pattern with Checkerboard Interior</sub>",
+            x=0.5,
+            xanchor='center',
+            font=dict(size=16)
+        )
+    )
+    
+    return fig
+
 def main():
     # Header
-    st.markdown('<div class="main-header">Hybrid Architected Material Designer<br>Powered by Agentic AI</div>', 
+    st.markdown('<div class="main-header">Hybrid Architectured Material Designer<br>Powered by Gemini AI</div>', 
                 unsafe_allow_html=True)
+    
+    # Attractive demo visualization right below header
+    st.markdown("""
+    <div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+        <h3 style='margin: 0; font-weight: bold;'>✨ Interactive 3D Lattice Design Platform</h3>
+        <p style='margin: 5px 0 0 0; font-size: 0.9rem;'>20 Unit Cell Types • 96 Combinations • AI-Powered Optimization</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Demo visualization in a nice container
+    demo_col1, demo_col2, demo_col3 = st.columns([1, 3, 1])
+    
+    with demo_col2:
+        with st.spinner("Loading interactive demo..."):
+            try:
+                demo_fig = create_demo_visualization()
+                st.plotly_chart(demo_fig, use_container_width=True, key="demo_viz")
+                
+                # Info box below demo
+                st.markdown("""
+                <div style='background-color: #f0f7ff; padding: 12px; border-radius: 8px; 
+                            border-left: 4px solid #1f77b4; margin-top: 10px;'>
+                    <strong>💡 Interactive Demo:</strong> Use your mouse to rotate, zoom, and explore the 3D structure.<br>
+                    <strong>🎨 Design Your Own:</strong> Select cell types in the sidebar and start creating!
+                </div>
+                """, unsafe_allow_html=True)
+                
+            except Exception as e:
+                st.info("Demo visualization will load once you configure the application")
+    
+    st.markdown("---")
     
     # Sidebar
     with st.sidebar:
@@ -1538,7 +2328,7 @@ Provide a comprehensive answer with:
         
         ### Scientific Background
         
-        Hybrid architectured materials combine different unit cell topologies to achieve 
+        Hybrid architected materials combine different unit cell topologies to achieve 
         superior mechanical properties. By strategically placing bending-dominated and 
         stretching-dominated cells, designers can create structures that are:
         
