@@ -8,7 +8,7 @@ import re
 
 # Page configuration
 st.set_page_config(
-    page_title="HybridLattice: An Agentic AI model for creating Hybrid architected materials",
+    page_title="HybridLattice: An Agentic Ai model to create hybrid architected materials",
     page_icon="⚛",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -345,17 +345,19 @@ def parse_pattern_from_response(response_text, grid_size):
     return pattern
 
 def create_honeycomb_cell(center, size, color):
-    """Create a honeycomb structure (bending-dominated)"""
+    """Create a honeycomb structure with proper boundary connectivity"""
     traces = []
     n_sides = 6
-    radius = size / 2.5
+    radius = size / 3
     
-    # Vertical beams
+    # Create vertices at cell boundaries for connectivity
+    # Vertical beams that extend to cell boundaries
     for i in range(n_sides):
         angle = i * 2 * np.pi / n_sides
         x = center[0] + radius * np.cos(angle)
         y = center[1] + radius * np.sin(angle)
         
+        # Full height vertical beam to connect top and bottom
         traces.append(go.Scatter3d(
             x=[x, x],
             y=[y, y],
@@ -366,9 +368,8 @@ def create_honeycomb_cell(center, size, color):
             showlegend=False
         ))
     
-    # Horizontal hexagonal rings
-    heights = [-size/2, -size/4, 0, size/4, size/2]
-    for h in heights:
+    # Horizontal hexagonal rings at top and bottom boundaries
+    for z_pos in [center[2] - size/2, center[2] + size/2]:
         for i in range(n_sides):
             angle1 = i * 2 * np.pi / n_sides
             angle2 = (i + 1) * 2 * np.pi / n_sides
@@ -381,9 +382,65 @@ def create_honeycomb_cell(center, size, color):
             traces.append(go.Scatter3d(
                 x=[x1, x2],
                 y=[y1, y2],
-                z=[center[2] + h, center[2] + h],
+                z=[z_pos, z_pos],
                 mode='lines',
                 line=dict(color=color, width=8),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    # Middle horizontal ring for stability
+    z_mid = center[2]
+    for i in range(n_sides):
+        angle1 = i * 2 * np.pi / n_sides
+        angle2 = (i + 1) * 2 * np.pi / n_sides
+        
+        x1 = center[0] + radius * np.cos(angle1)
+        y1 = center[1] + radius * np.sin(angle1)
+        x2 = center[0] + radius * np.cos(angle2)
+        y2 = center[1] + radius * np.sin(angle2)
+        
+        traces.append(go.Scatter3d(
+            x=[x1, x2],
+            y=[y1, y2],
+            z=[z_mid, z_mid],
+            mode='lines',
+            line=dict(color=color, width=8),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    # Add connections to cell face boundaries for proper connectivity
+    # Connect to X-direction faces
+    for angle in [0, np.pi]:  # 0 and 180 degrees
+        x_edge = center[0] + radius * np.cos(angle)
+        y_edge = center[1] + radius * np.sin(angle)
+        x_boundary = center[0] + (size/2) * np.sign(np.cos(angle))
+        
+        for z in [center[2] - size/2, center[2], center[2] + size/2]:
+            traces.append(go.Scatter3d(
+                x=[x_edge, x_boundary],
+                y=[y_edge, y_edge],
+                z=[z, z],
+                mode='lines',
+                line=dict(color=color, width=6),
+                hoverinfo='skip',
+                showlegend=False
+            ))
+    
+    # Connect to Y-direction faces
+    for angle in [np.pi/2, 3*np.pi/2]:  # 90 and 270 degrees
+        x_edge = center[0] + radius * np.cos(angle)
+        y_edge = center[1] + radius * np.sin(angle)
+        y_boundary = center[1] + (size/2) * np.sign(np.sin(angle))
+        
+        for z in [center[2] - size/2, center[2], center[2] + size/2]:
+            traces.append(go.Scatter3d(
+                x=[x_edge, x_edge],
+                y=[y_edge, y_boundary],
+                z=[z, z],
+                mode='lines',
+                line=dict(color=color, width=6),
                 hoverinfo='skip',
                 showlegend=False
             ))
@@ -788,49 +845,82 @@ def create_kagome_cell(center, size, color):
     return traces
 
 def create_octet_truss_cell(center, size, color):
-    """Create an octet-truss structure (stretching-dominated)"""
+    """Create an octet-truss structure with proper boundary connectivity"""
     traces = []
     
-    # Define vertices relative to center
+    # Define vertices AT CELL BOUNDARIES - this is critical for connectivity
     s = size / 2
     vertices = np.array([
-        [-s, -s, -s], [s, -s, -s], [s, s, -s], [-s, s, -s],  # Bottom
-        [-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s],      # Top
-        [0, 0, -s], [0, 0, s],                                # Face centers z
-        [-s, 0, 0], [s, 0, 0],                                # Face centers x
-        [0, -s, 0], [0, s, 0],                                # Face centers y
-        [0, 0, 0]                                             # Center
+        # Corner vertices AT boundaries
+        [-s, -s, -s], [s, -s, -s], [s, s, -s], [-s, s, -s],  # Bottom corners
+        [-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s],      # Top corners
+        # Face center vertices AT boundaries
+        [0, 0, -s], [0, 0, s],    # Z-face centers (bottom, top)
+        [-s, 0, 0], [s, 0, 0],    # X-face centers (left, right)
+        [0, -s, 0], [0, s, 0],    # Y-face centers (front, back)
+        # Cell center
+        [0, 0, 0]
     ]) + center
     
-    # Enhanced connections for octet-truss
+    # Octet-truss connections - triangulated for stiffness
     connections = [
-        # Vertical edges
+        # Bottom face tetrahedrons to center
+        (0, 1, 8), (1, 2, 8), (2, 3, 8), (3, 0, 8),
+        # Top face tetrahedrons to center  
+        (4, 5, 9), (5, 6, 9), (6, 7, 9), (7, 4, 9),
+        # Vertical edges (essential for connectivity)
         (0, 4), (1, 5), (2, 6), (3, 7),
-        # Bottom face to bottom center
-        (0, 8), (1, 8), (2, 8), (3, 8),
-        # Top face to top center
-        (4, 9), (5, 9), (6, 9), (7, 9),
-        # Face centers to cell center
+        # Face centers to cell center (octet structure)
         (8, 14), (9, 14), (10, 14), (11, 14), (12, 14), (13, 14),
-        # Cell center to corners
-        (14, 0), (14, 1), (14, 2), (14, 3),
-        (14, 4), (14, 5), (14, 6), (14, 7),
-        # Additional diagonal bracing
-        (0, 12), (1, 12), (2, 11), (3, 10),
-        (4, 12), (5, 12), (6, 11), (7, 10),
+        # Bottom corners to face centers
+        (0, 8), (1, 8), (2, 8), (3, 8),
+        (0, 10), (0, 12), (1, 11), (1, 12),
+        (2, 11), (2, 13), (3, 10), (3, 13),
+        # Top corners to face centers
+        (4, 9), (5, 9), (6, 9), (7, 9),
+        (4, 10), (4, 12), (5, 11), (5, 12),
+        (6, 11), (6, 13), (7, 10), (7, 13),
+        # Diagonal bracing through center
+        (8, 9), (10, 11), (12, 13),
+        # Corner to opposite corner through center for rigidity
+        (0, 14), (1, 14), (2, 14), (3, 14),
+        (4, 14), (5, 14), (6, 14), (7, 14),
     ]
     
+    # Draw struts as individual edges (not tetrahedron faces)
+    drawn_edges = set()
     for conn in connections:
-        p1, p2 = vertices[conn[0]], vertices[conn[1]]
-        traces.append(go.Scatter3d(
-            x=[p1[0], p2[0]],
-            y=[p1[1], p2[1]],
-            z=[p1[2], p2[2]],
-            mode='lines',
-            line=dict(color=color, width=10),
-            hoverinfo='skip',
-            showlegend=False
-        ))
+        if len(conn) == 2:
+            # Direct edge
+            edge = tuple(sorted(conn))
+            if edge not in drawn_edges:
+                p1, p2 = vertices[conn[0]], vertices[conn[1]]
+                traces.append(go.Scatter3d(
+                    x=[p1[0], p2[0]],
+                    y=[p1[1], p2[1]],
+                    z=[p1[2], p2[2]],
+                    mode='lines',
+                    line=dict(color=color, width=10),
+                    hoverinfo='skip',
+                    showlegend=False
+                ))
+                drawn_edges.add(edge)
+        else:
+            # Triangle - draw all three edges
+            for i in range(3):
+                edge = tuple(sorted([conn[i], conn[(i+1)%3]]))
+                if edge not in drawn_edges:
+                    p1, p2 = vertices[edge[0]], vertices[edge[1]]
+                    traces.append(go.Scatter3d(
+                        x=[p1[0], p2[0]],
+                        y=[p1[1], p2[1]],
+                        z=[p1[2], p2[2]],
+                        mode='lines',
+                        line=dict(color=color, width=10),
+                        hoverinfo='skip',
+                        showlegend=False
+                    ))
+                    drawn_edges.add(edge)
     
     return traces
 
@@ -1534,52 +1624,74 @@ def generate_pattern_presets(grid_size):
 # MAIN APP
 # ============================================
 
-def create_demo_visualization():
-    """Create an attractive demo visualization of 4x4x4 hybrid lattice"""
-    # Create a visually appealing demo pattern
+def create_rotating_demo():
+    """Create auto-rotating 4x4x4 demo visualization"""
+    # Create demo pattern
     demo_pattern = np.ones((4, 4, 4), dtype=int)
-    
-    # Create an interesting pattern (core-shell with checkerboard)
     for i in range(4):
         for j in range(4):
             for k in range(4):
-                # Outer shell is stretching-dominated
                 if i == 0 or i == 3 or j == 0 or j == 3 or k == 0 or k == 3:
                     demo_pattern[i, j, k] = 2
-                # Inner checkerboard
                 elif (i + j + k) % 2 == 0:
                     demo_pattern[i, j, k] = 2
     
-    # Create figure
+    # Create base figure
     fig = go.Figure()
     
     bending_added = False
     stretching_added = False
     
-    # Generate lattice structures for demo
+    # Generate lattice structures
     for i in range(4):
         for j in range(4):
             for k in range(4):
                 center = np.array([i, j, k])
                 
-                if demo_pattern[i, j, k] == 1:  # Bending-dominated
+                if demo_pattern[i, j, k] == 1:
                     traces = create_honeycomb_cell(center, 1.0, COLOR_BENDING)
                     for trace in traces:
                         if not bending_added:
                             trace.showlegend = True
-                            trace.name = 'Bending: Honeycomb'
+                            trace.name = 'Bending-Dominated'
                             bending_added = True
                         fig.add_trace(trace)
-                else:  # Stretching-dominated
+                else:
                     traces = create_octet_truss_cell(center, 1.0, COLOR_STRETCHING)
                     for trace in traces:
                         if not stretching_added:
                             trace.showlegend = True
-                            trace.name = 'Stretching: Octet-Truss'
+                            trace.name = 'Stretching-Dominated'
                             stretching_added = True
                         fig.add_trace(trace)
     
-    # Update layout for attractive display
+    # Create rotation frames
+    frames = []
+    n_frames = 72  # Smooth rotation
+    
+    for i in range(n_frames):
+        angle = i * 5  # 5 degrees per frame
+        rad = np.radians(angle)
+        
+        # Calculate camera position for circular rotation
+        camera = dict(
+            eye=dict(
+                x=1.8 * np.cos(rad),
+                y=1.8 * np.sin(rad),
+                z=1.5
+            ),
+            center=dict(x=1.5, y=1.5, z=1.5),
+            up=dict(x=0, y=0, z=1)
+        )
+        
+        frames.append(go.Frame(
+            layout=dict(scene_camera=camera),
+            name=str(i)
+        ))
+    
+    fig.frames = frames
+    
+    # Layout
     fig.update_layout(
         scene=dict(
             xaxis=dict(
@@ -1587,47 +1699,73 @@ def create_demo_visualization():
                 showbackground=True,
                 backgroundcolor="rgb(230, 230, 230)",
                 gridcolor="white",
-                showticklabels=False
+                showticklabels=False,
+                showgrid=True
             ),
             yaxis=dict(
                 title='',
                 showbackground=True,
                 backgroundcolor="rgb(230, 230, 230)",
                 gridcolor="white",
-                showticklabels=False
+                showticklabels=False,
+                showgrid=True
             ),
             zaxis=dict(
                 title='',
                 showbackground=True,
                 backgroundcolor="rgb(230, 230, 230)",
                 gridcolor="white",
-                showticklabels=False
+                showticklabels=False,
+                showgrid=True
             ),
             aspectmode='data',
             camera=dict(
-                eye=dict(x=1.8, y=1.8, z=1.5),
-                center=dict(x=0, y=0, z=0),
+                eye=dict(x=1.8, y=0, z=1.5),
+                center=dict(x=1.5, y=1.5, z=1.5),
                 up=dict(x=0, y=0, z=1)
             )
         ),
         showlegend=True,
         legend=dict(
-            x=0.7,
-            y=0.95,
+            x=0.02,
+            y=0.98,
             bgcolor="rgba(255, 255, 255, 0.8)",
             bordercolor="gray",
-            borderwidth=1
+            borderwidth=1,
+            font=dict(size=11)
         ),
-        height=450,
-        margin=dict(l=0, r=0, t=40, b=0),
-        paper_bgcolor='rgba(240, 245, 250, 0.5)',
-        plot_bgcolor='rgba(240, 245, 250, 0.5)',
-        title=dict(
-            text="<b>4×4×4 Hybrid Lattice Preview</b><br><sub>Core-Shell Pattern with Checkerboard Interior</sub>",
-            x=0.5,
-            xanchor='center',
-            font=dict(size=16)
-        )
+        height=500,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        updatemenus=[{
+            'type': 'buttons',
+            'showactive': False,
+            'buttons': [{
+                'label': 'Play',
+                'method': 'animate',
+                'args': [None, {
+                    'frame': {'duration': 50, 'redraw': True},
+                    'fromcurrent': True,
+                    'mode': 'immediate',
+                    'transition': {'duration': 0}
+                }]
+            }, {
+                'label': 'Pause',
+                'method': 'animate',
+                'args': [[None], {
+                    'frame': {'duration': 0, 'redraw': False},
+                    'mode': 'immediate',
+                    'transition': {'duration': 0}
+                }]
+            }],
+            'direction': 'left',
+            'pad': {'r': 10, 't': 10},
+            'x': 0.5,
+            'xanchor': 'center',
+            'y': -0.05,
+            'yanchor': 'top'
+        }]
     )
     
     return fig
@@ -1637,35 +1775,32 @@ def main():
     st.markdown('<div class="main-header">Hybrid Architectured Material Designer<br>Powered by Gemini AI</div>', 
                 unsafe_allow_html=True)
     
-    # Attractive demo visualization right below header
+    # Auto-rotating demo
     st.markdown("""
-    <div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                color: white; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
-        <h3 style='margin: 0; font-weight: bold;'>✨ Interactive 3D Lattice Design Platform</h3>
-        <p style='margin: 5px 0 0 0; font-size: 0.9rem;'>20 Unit Cell Types • 96 Combinations • AI-Powered Optimization</p>
+    <div style='text-align: center; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; border-radius: 8px; margin-bottom: 15px;'>
+        <h3 style='margin: 0;'>Interactive 3D Lattice Design Platform</h3>
+        <p style='margin: 5px 0 0 0; font-size: 0.9rem;'>20 Unit Cell Types - 96 Combinations - AI-Powered Optimization</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Demo visualization in a nice container
-    demo_col1, demo_col2, demo_col3 = st.columns([1, 3, 1])
-    
-    with demo_col2:
-        with st.spinner("Loading interactive demo..."):
-            try:
-                demo_fig = create_demo_visualization()
-                st.plotly_chart(demo_fig, use_container_width=True, key="demo_viz")
-                
-                # Info box below demo
-                st.markdown("""
-                <div style='background-color: #f0f7ff; padding: 12px; border-radius: 8px; 
-                            border-left: 4px solid #1f77b4; margin-top: 10px;'>
-                    <strong>💡 Interactive Demo:</strong> Use your mouse to rotate, zoom, and explore the 3D structure.<br>
-                    <strong>🎨 Design Your Own:</strong> Select cell types in the sidebar and start creating!
-                </div>
-                """, unsafe_allow_html=True)
-                
-            except Exception as e:
-                st.info("Demo visualization will load once you configure the application")
+    # Demo visualization
+    with st.spinner("Loading rotating demo..."):
+        try:
+            demo_fig = create_rotating_demo()
+            st.plotly_chart(demo_fig, use_container_width=True, key="rotating_demo")
+            
+            st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; 
+                        border-left: 3px solid #1f77b4; margin-top: 10px; text-align: center;'>
+                <span style='color: #1f77b4;'>Sky Blue = Bending-Dominated (Flexible)</span> | 
+                <span style='color: #ff0000;'>Red = Stretching-Dominated (Stiff)</span><br>
+                <small>Click Play to start auto-rotation | Use mouse to manually rotate, zoom, pan</small>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        except Exception as e:
+            st.info("Demo will load after configuring the application")
     
     st.markdown("---")
     
