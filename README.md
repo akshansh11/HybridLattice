@@ -112,7 +112,7 @@ google-generativeai>=0.3.0
 
 1. **Launch the Streamlit app**
 ```bash
-streamlit run hybrid_lattice_corrected.py
+streamlit run main.py
 ```
 
 2. **Configure Gemini API**
@@ -144,7 +144,7 @@ streamlit run hybrid_lattice_corrected.py
 
 ```
 HybridLattice/
-├── hybrid_lattice_corrected.py    # Main application file (research-validated)
+├── main.py                        # Main application file (research-validated)
 ├── requirements.txt               # Python dependencies
 ├── README.md                      # This file
 ├── LICENSE                        # CC BY-NC-ND 4.0 License
