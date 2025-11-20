@@ -334,4 +334,4 @@ Planned features (subject to license restrictions):
 
 ---
 
-Copyright (c) 2024 [Akshansh Mishra]. Licensed under CC BY-NC-ND 4.0.
+Copyright (c) 2025 [Akshansh Mishra]. Licensed under CC BY-NC-ND 4.0.
