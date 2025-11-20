@@ -282,9 +282,9 @@ If you use this software in your research, please cite:
 
 ```
 HybridLattice: Agentic AI Model for Hybrid Architected Materials
-[Your Name/Institution]
-[Year]
-Available at: https://github.com/yourusername/HybridLattice
+[Akshansh Mishra]
+[2025]
+Available at: https://github.com/akshansh11/HybridLattice
 ```
 
 ---
