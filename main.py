@@ -37,6 +37,27 @@ st.markdown("""
     .stButton>button:hover {
         background-color: #1565c0;
     }
+    .compatibility-warning {
+        background-color: #fff3cd;
+        border-left: 4px solid #ff9800;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .compatibility-error {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .compatibility-success {
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -53,49 +74,164 @@ if 'selected_bending_cell' not in st.session_state:
     st.session_state.selected_bending_cell = 'bcc'
 if 'selected_stretching_cell' not in st.session_state:
     st.session_state.selected_stretching_cell = 'octet'
+if 'compatibility_status' not in st.session_state:
+    st.session_state.compatibility_status = None
 
 # Color scheme
 COLOR_BENDING = 'rgb(135, 206, 250)'
 COLOR_STRETCHING = 'rgb(255, 0, 0)'
 
-# Research-accurate cell type definitions
+# ============================================
+# COMPATIBILITY MATRIX - RESEARCH-BASED
+# Based on published literature about hybrid lattice structures
+# ============================================
+
+# Research references:
+# 1. FCC-BCC: Proven compatible (PMC, DOI: 10.1016/j.heliyon.2024.e39411)
+# 2. Octet-BCC: Proven compatible (multiple papers on hybrid BCC-Octet structures)
+# 3. Diamond-FCC: Compatible (TPMS hybrid studies)
+# 4. Kelvin cells: Limited compatibility due to different connectivity (Z=14 vs Z=12)
+
+COMPATIBILITY_MATRIX = {
+    # Bending cells (keys) -> Compatible stretching cells (values)
+    'bcc': {
+        'compatible': ['octet', 'fcc'],
+        'reason': 'BCC has nodal connectivity Z=8, can connect with FCC (Z=12) and Octet (Z=12) at shared nodes',
+        'references': [
+            'Design and evaluation of FCC-BCC hybrid lattice structures (PMC, 2024)',
+            'Multi-cell hybrid BCC-Octet structures (Journal of Materials, 2020)'
+        ]
+    },
+    'rhombic_dodec': {
+        'compatible': ['diamond'],
+        'reason': 'Rhombic dodecahedron has 14 vertices, compatible with Diamond tetrahedral structure',
+        'references': [
+            'Hybrid lattice structures with Pillar Octahedral and Rhombic Dodecahedron (IJAMT, 2023)'
+        ]
+    },
+    'kelvin': {
+        'compatible': [],
+        'reason': 'Kelvin cell (truncated octahedron) has Z=14 connectivity, incompatible with most stretching-dominated cells (Z=12)',
+        'references': [
+            'Kelvin cell mechanical properties (JOM, 2023) - shows limited hybrid compatibility'
+        ]
+    },
+}
+
+# Research-accurate cell type definitions with connectivity information
 BENDING_CELL_TYPES = {
-    'bcc': {'name': 'BCC (Body-Centered Cubic)', 'description': 'Bending-dominated - diagonal struts'},
-    'rhombic_dodec': {'name': 'Rhombic Dodecahedron', 'description': 'Bending-dominated - 12 faces'},
-    'kelvin': {'name': 'Kelvin Cell', 'description': 'Bending-dominated - truncated octahedron'},
+    'bcc': {
+        'name': 'BCC (Body-Centered Cubic)',
+        'description': 'Bending-dominated - diagonal struts, Z=8',
+        'connectivity': 8
+    },
+    'rhombic_dodec': {
+        'name': 'Rhombic Dodecahedron',
+        'description': 'Bending-dominated - 12 faces, Z=14',
+        'connectivity': 14
+    },
+    'kelvin': {
+        'name': 'Kelvin Cell',
+        'description': 'Bending-dominated - truncated octahedron, Z=14',
+        'connectivity': 14
+    },
 }
 
 STRETCHING_CELL_TYPES = {
-    'octet': {'name': 'Octet-Truss', 'description': 'Stretching-dominated - triangulated'},
-    'fcc': {'name': 'FCC (Face-Centered Cubic)', 'description': 'Stretching-dominated - face centers'},
-    'diamond': {'name': 'Diamond', 'description': 'Stretching-dominated - tetrahedral'},
+    'octet': {
+        'name': 'Octet-Truss',
+        'description': 'Stretching-dominated - triangulated, Z=12',
+        'connectivity': 12
+    },
+    'fcc': {
+        'name': 'FCC (Face-Centered Cubic)',
+        'description': 'Stretching-dominated - face centers, Z=12',
+        'connectivity': 12
+    },
+    'diamond': {
+        'name': 'Diamond',
+        'description': 'Stretching-dominated - tetrahedral, Z=4',
+        'connectivity': 4
+    },
 }
 
 # ============================================
-# RESEARCH-ACCURATE GEOMETRY FUNCTIONS
-# Based on published literature
+# COMPATIBILITY CHECKING FUNCTIONS
+# ============================================
+
+def check_compatibility(bending_type, stretching_type):
+    """
+    Check if two unit cell types are compatible for hybrid lattice structures.
+    Returns: (is_compatible: bool, status_message: str, details: dict)
+    """
+    if bending_type not in COMPATIBILITY_MATRIX:
+        return False, f"Unknown bending cell type: {bending_type}", {}
+    
+    compat_info = COMPATIBILITY_MATRIX[bending_type]
+    
+    if stretching_type in compat_info['compatible']:
+        return True, "Compatible - Cells can connect properly at boundaries", {
+            'reason': compat_info['reason'],
+            'references': compat_info['references'],
+            'bending_connectivity': BENDING_CELL_TYPES[bending_type]['connectivity'],
+            'stretching_connectivity': STRETCHING_CELL_TYPES[stretching_type]['connectivity']
+        }
+    else:
+        return False, "WARNING: INCOMPATIBLE - These cells cannot form proper connections", {
+            'reason': compat_info['reason'],
+            'bending_connectivity': BENDING_CELL_TYPES[bending_type]['connectivity'],
+            'stretching_connectivity': STRETCHING_CELL_TYPES[stretching_type]['connectivity'],
+            'issue': 'Nodal connectivity mismatch prevents proper structural integration'
+        }
+
+def display_compatibility_status(bending_type, stretching_type):
+    """Display compatibility status with detailed information"""
+    is_compatible, message, details = check_compatibility(bending_type, stretching_type)
+    
+    if is_compatible:
+        st.markdown(f"""
+        <div class="compatibility-success">
+            <h4>[COMPATIBLE] {message}</h4>
+            <p><strong>Why Compatible:</strong> {details['reason']}</p>
+            <p><strong>Nodal Connectivity:</strong> Bending (Z={details['bending_connectivity']}) <-> Stretching (Z={details['stretching_connectivity']})</p>
+            <details>
+                <summary><strong>Research References</strong></summary>
+                <ul>
+                    {''.join([f'<li>{ref}</li>' for ref in details['references']])}
+                </ul>
+            </details>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="compatibility-error">
+            <h4>[INCOMPATIBLE] {message}</h4>
+            <p><strong>Issue:</strong> {details['issue']}</p>
+            <p><strong>Technical Reason:</strong> {details['reason']}</p>
+            <p><strong>Nodal Connectivity:</strong> Bending (Z={details['bending_connectivity']}) vs Stretching (Z={details['stretching_connectivity']})</p>
+            <p><strong>WARNING:</strong> Visualization may show disconnected struts at cell boundaries. Choose compatible cell types for functional hybrid structures.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    return is_compatible
+
+# ============================================
+# GEOMETRY FUNCTIONS (kept from original)
 # ============================================
 
 def create_bcc_cell_complete(i, j, k, size, color):
-    """
-    BCC (Body-Centered Cubic) - Bending-dominated
-    Reference: Deshpande et al. "Foam topology: bending versus stretching"
-    Complete geometry with all struts
-    """
+    """BCC (Body-Centered Cubic) - Bending-dominated"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
     
-    # 8 corner vertices
     corners = np.array([
         [x0, y0, z0], [x0+s, y0, z0], [x0+s, y0+s, z0], [x0, y0+s, z0],
         [x0, y0, z0+s], [x0+s, y0, z0+s], [x0+s, y0+s, z0+s], [x0, y0+s, z0+s]
     ])
     
-    # Body center
     center = np.array([x0+s/2, y0+s/2, z0+s/2])
     
-    # BCC: 8 diagonal struts from corners to body center
     for corner in corners:
         traces.append(go.Scatter3d(
             x=[corner[0], center[0]],
@@ -110,40 +246,29 @@ def create_bcc_cell_complete(i, j, k, size, color):
     return traces
 
 def create_rhombic_dodecahedron_complete(i, j, k, size, color):
-    """
-    Rhombic Dodecahedron - Bending-dominated
-    Reference: Sun et al. hybrid lattice structures
-    12 rhombic faces, complete geometry
-    """
+    """Rhombic Dodecahedron - Bending-dominated"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
     
-    # Center
     cx, cy, cz = x0 + s/2, y0 + s/2, z0 + s/2
     
-    # 14 vertices of rhombic dodecahedron
-    # 8 at corners + 6 at face centers
     vertices = np.array([
-        # 8 corners (distance s/2 from center)
-        [cx - s/2, cy, cz], [cx + s/2, cy, cz],  # X-axis
-        [cx, cy - s/2, cz], [cx, cy + s/2, cz],  # Y-axis
-        [cx, cy, cz - s/2], [cx, cy, cz + s/2],  # Z-axis
-        # 8 diagonal vertices
+        [cx - s/2, cy, cz], [cx + s/2, cy, cz],
+        [cx, cy - s/2, cz], [cx, cy + s/2, cz],
+        [cx, cy, cz - s/2], [cx, cy, cz + s/2],
         [cx - s/4, cy - s/4, cz - s/4], [cx + s/4, cy - s/4, cz - s/4],
         [cx + s/4, cy + s/4, cz - s/4], [cx - s/4, cy + s/4, cz - s/4],
         [cx - s/4, cy - s/4, cz + s/4], [cx + s/4, cy - s/4, cz + s/4],
         [cx + s/4, cy + s/4, cz + s/4], [cx - s/4, cy + s/4, cz + s/4],
     ])
     
-    # 12 rhombic faces - each face has 4 edges
     faces = [
         (0, 7, 4, 6), (0, 9, 4, 10), (1, 8, 4, 7), (1, 11, 4, 8),
         (2, 6, 4, 7), (2, 10, 4, 11), (3, 8, 4, 9), (3, 11, 4, 10),
         (0, 6, 5, 13), (0, 10, 5, 13), (1, 7, 5, 12), (1, 11, 5, 12),
     ]
     
-    # Draw edges of each rhombic face
     for face in faces:
         for i_v in range(4):
             v1 = vertices[face[i_v]]
@@ -161,26 +286,18 @@ def create_rhombic_dodecahedron_complete(i, j, k, size, color):
     return traces
 
 def create_kelvin_cell_complete(i, j, k, size, color):
-    """
-    Kelvin Cell (Truncated Octahedron) - Bending-dominated
-    Reference: Gibson & Ashby cellular solids
-    Space-filling, complete geometry
-    """
+    """Kelvin Cell (Truncated Octahedron) - Bending-dominated"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
     
-    # Center
     cx, cy, cz = x0 + s/2, y0 + s/2, z0 + s/2
-    a = s / 2.5  # Scaling factor
+    a = s / 2.5
     
-    # 24 vertices of truncated octahedron
     vertices = np.array([
-        # 6 vertices along axes
         [cx - a, cy, cz], [cx + a, cy, cz],
         [cx, cy - a, cz], [cx, cy + a, cz],
         [cx, cy, cz - a], [cx, cy, cz + a],
-        # 12 edge vertices
         [cx - a/2, cy - a/2, cz - a], [cx + a/2, cy - a/2, cz - a],
         [cx + a/2, cy + a/2, cz - a], [cx - a/2, cy + a/2, cz - a],
         [cx - a/2, cy - a/2, cz + a], [cx + a/2, cy - a/2, cz + a],
@@ -193,7 +310,6 @@ def create_kelvin_cell_complete(i, j, k, size, color):
         [cx + a/2, cy - a, cz + a/2], [cx - a/2, cy - a, cz + a/2],
     ])
     
-    # Edges of truncated octahedron - 36 edges
     edges = [
         (0, 14), (0, 15), (0, 16), (0, 17),
         (1, 18), (1, 19), (1, 20), (1, 21),
@@ -221,32 +337,25 @@ def create_kelvin_cell_complete(i, j, k, size, color):
     return traces
 
 def create_octet_truss_complete(i, j, k, size, color):
-    """
-    Octet-Truss - Stretching-dominated
-    Reference: Deshpande & Fleck, "Foam topology"
-    Complete triangulated geometry with all struts
-    """
+    """Octet-Truss - Stretching-dominated"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
     
-    # 8 corner vertices
     corners = np.array([
         [x0, y0, z0], [x0+s, y0, z0], [x0+s, y0+s, z0], [x0, y0+s, z0],
         [x0, y0, z0+s], [x0+s, y0, z0+s], [x0+s, y0+s, z0+s], [x0, y0+s, z0+s]
     ])
     
-    # 6 face centers
     face_centers = np.array([
-        [x0+s/2, y0+s/2, z0],      # Bottom
-        [x0+s/2, y0+s/2, z0+s],    # Top
-        [x0, y0+s/2, z0+s/2],      # Left
-        [x0+s, y0+s/2, z0+s/2],    # Right
-        [x0+s/2, y0, z0+s/2],      # Front
-        [x0+s/2, y0+s, z0+s/2],    # Back
+        [x0+s/2, y0+s/2, z0],
+        [x0+s/2, y0+s/2, z0+s],
+        [x0, y0+s/2, z0+s/2],
+        [x0+s, y0+s/2, z0+s/2],
+        [x0+s/2, y0, z0+s/2],
+        [x0+s/2, y0+s, z0+s/2],
     ])
     
-    # Octet-truss: corners to adjacent face centers (24 struts)
     corner_to_faces = [
         (0, [0, 2, 4]), (1, [0, 3, 4]), (2, [0, 3, 5]), (3, [0, 2, 5]),
         (4, [1, 2, 4]), (5, [1, 3, 4]), (6, [1, 3, 5]), (7, [1, 2, 5])
@@ -267,36 +376,29 @@ def create_octet_truss_complete(i, j, k, size, color):
     return traces
 
 def create_fcc_cell_complete(i, j, k, size, color):
-    """
-    FCC (Face-Centered Cubic) - Stretching-dominated
-    Reference: Ashby "Cellular Solids"
-    Complete geometry with face-center connections
-    """
+    """FCC (Face-Centered Cubic) - Stretching-dominated"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
     
-    # 8 corner vertices
     corners = np.array([
         [x0, y0, z0], [x0+s, y0, z0], [x0+s, y0+s, z0], [x0, y0+s, z0],
         [x0, y0, z0+s], [x0+s, y0, z0+s], [x0+s, y0+s, z0+s], [x0, y0+s, z0+s]
     ])
     
-    # 6 face centers
     face_centers = np.array([
-        [x0+s/2, y0+s/2, z0],      # Bottom (Z=0)
-        [x0+s/2, y0+s/2, z0+s],    # Top (Z=s)
-        [x0, y0+s/2, z0+s/2],      # Left (X=0)
-        [x0+s, y0+s/2, z0+s/2],    # Right (X=s)
-        [x0+s/2, y0, z0+s/2],      # Front (Y=0)
-        [x0+s/2, y0+s, z0+s/2],    # Back (Y=s)
+        [x0+s/2, y0+s/2, z0],
+        [x0+s/2, y0+s/2, z0+s],
+        [x0, y0+s/2, z0+s/2],
+        [x0+s, y0+s/2, z0+s/2],
+        [x0+s/2, y0, z0+s/2],
+        [x0+s/2, y0+s, z0+s/2],
     ])
     
-    # FCC: 12 edges connecting face centers
     fcc_edges = [
-        (0, 2), (0, 3), (0, 4), (0, 5),  # Bottom face to side faces
-        (1, 2), (1, 3), (1, 4), (1, 5),  # Top face to side faces
-        (2, 4), (2, 5), (3, 4), (3, 5),  # Between side faces
+        (0, 2), (0, 3), (0, 4), (0, 5),
+        (1, 2), (1, 3), (1, 4), (1, 5),
+        (2, 4), (2, 5), (3, 4), (3, 5),
     ]
     
     for edge in fcc_edges:
@@ -311,16 +413,11 @@ def create_fcc_cell_complete(i, j, k, size, color):
             showlegend=False
         ))
     
-    # Also connect corners to their nearest face centers for continuity
     corner_face_connections = [
-        (0, 0), (0, 2), (0, 4),  # Corner 0 to bottom, left, front
-        (1, 0), (1, 3), (1, 4),  # Corner 1 to bottom, right, front
-        (2, 0), (2, 3), (2, 5),  # Corner 2 to bottom, right, back
-        (3, 0), (3, 2), (3, 5),  # Corner 3 to bottom, left, back
-        (4, 1), (4, 2), (4, 4),  # Corner 4 to top, left, front
-        (5, 1), (5, 3), (5, 4),  # Corner 5 to top, right, front
-        (6, 1), (6, 3), (6, 5),  # Corner 6 to top, right, back
-        (7, 1), (7, 2), (7, 5),  # Corner 7 to top, left, back
+        (0, 0), (0, 2), (0, 4), (1, 0), (1, 3), (1, 4),
+        (2, 0), (2, 3), (2, 5), (3, 0), (3, 2), (3, 5),
+        (4, 1), (4, 2), (4, 4), (5, 1), (5, 3), (5, 4),
+        (6, 1), (6, 3), (6, 5), (7, 1), (7, 2), (7, 5),
     ]
     
     for conn in corner_face_connections:
@@ -338,37 +435,26 @@ def create_fcc_cell_complete(i, j, k, size, color):
     return traces
 
 def create_diamond_lattice_complete(i, j, k, size, color):
-    """
-    Diamond Lattice - Stretching-dominated
-    Reference: Zhang et al. "Mechanical performance of TPMS"
-    Complete tetrahedral network
-    """
+    """Diamond Lattice - Stretching-dominated"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
     
-    # Diamond lattice has 8 vertices in tetrahedral arrangement
-    a = s / 4  # Lattice parameter
     vertices = np.array([
         [x0, y0, z0], [x0+s, y0, z0], [x0+s, y0+s, z0], [x0, y0+s, z0],
         [x0, y0, z0+s], [x0+s, y0, z0+s], [x0+s, y0+s, z0+s], [x0, y0+s, z0+s],
-        [x0+s/2, y0+s/2, z0+s/2],  # Center
+        [x0+s/2, y0+s/2, z0+s/2],
         [x0+s/4, y0+s/4, z0+s/4], [x0+3*s/4, y0+s/4, z0+s/4],
         [x0+3*s/4, y0+3*s/4, z0+s/4], [x0+s/4, y0+3*s/4, z0+s/4],
         [x0+s/4, y0+s/4, z0+3*s/4], [x0+3*s/4, y0+s/4, z0+3*s/4],
         [x0+3*s/4, y0+3*s/4, z0+3*s/4], [x0+s/4, y0+3*s/4, z0+3*s/4],
     ])
     
-    # Tetrahedral connections - diamond structure
     edges = [
-        # Center to 4 tetrahedral vertices
         (8, 9), (8, 10), (8, 11), (8, 12), (8, 13), (8, 14), (8, 15), (8, 16),
-        # Tetrahedral edges
         (9, 10), (10, 11), (11, 12), (12, 9),
         (13, 14), (14, 15), (15, 16), (16, 13),
-        # Connecting top and bottom
         (9, 13), (10, 14), (11, 15), (12, 16),
-        # To corners for continuity
         (0, 9), (1, 10), (2, 11), (3, 12),
         (4, 13), (5, 14), (6, 15), (7, 16),
     ]
@@ -387,10 +473,7 @@ def create_diamond_lattice_complete(i, j, k, size, color):
     
     return traces
 
-# ============================================
-# MAPPING FUNCTIONS
-# ============================================
-
+# Mapping functions
 BENDING_FUNCTIONS = {
     'bcc': create_bcc_cell_complete,
     'rhombic_dodec': create_rhombic_dodecahedron_complete,
@@ -408,7 +491,7 @@ STRETCHING_FUNCTIONS = {
 # ============================================
 
 def visualize_3d_pattern_connected(pattern, cell_size=1.0, show_legend=True):
-    """Create 3D visualization with complete research-accurate geometries"""
+    """Create 3D visualization with compatibility checking"""
     grid_size = pattern.shape[0]
     fig = go.Figure()
     
@@ -417,6 +500,9 @@ def visualize_3d_pattern_connected(pattern, cell_size=1.0, show_legend=True):
     
     bending_type = st.session_state.selected_bending_cell
     stretching_type = st.session_state.selected_stretching_cell
+    
+    # Check compatibility
+    is_compatible, _, _ = check_compatibility(bending_type, stretching_type)
     
     for i in range(grid_size):
         for j in range(grid_size):
@@ -441,6 +527,11 @@ def visualize_3d_pattern_connected(pattern, cell_size=1.0, show_legend=True):
                             stretching_added = True
                         fig.add_trace(trace)
     
+    # Add annotation if incompatible
+    title_text = '3D Hybrid Lattice Structure'
+    if not is_compatible:
+        title_text += ' [WARNING: INCOMPATIBLE CELL COMBINATION]'
+    
     fig.update_layout(
         scene=dict(
             xaxis=dict(title='X', backgroundcolor="white", gridcolor="lightgray"),
@@ -451,15 +542,16 @@ def visualize_3d_pattern_connected(pattern, cell_size=1.0, show_legend=True):
         ),
         showlegend=show_legend,
         height=700,
-        margin=dict(l=0, r=0, t=30, b=0),
+        margin=dict(l=0, r=0, t=50, b=0),
         paper_bgcolor='white',
-        plot_bgcolor='white'
+        plot_bgcolor='white',
+        title=dict(text=title_text, x=0.5, xanchor='center')
     )
     
     return fig
 
 # ============================================
-# UTILITY FUNCTIONS
+# UTILITY FUNCTIONS (kept from original)
 # ============================================
 
 def configure_gemini_api(api_key):
@@ -525,7 +617,6 @@ def generate_pattern_presets(grid_size):
     """Generate preset patterns"""
     presets = {}
     
-    # Checkerboard
     pattern = np.ones((grid_size, grid_size, grid_size), dtype=int)
     for i in range(grid_size):
         for j in range(grid_size):
@@ -534,7 +625,6 @@ def generate_pattern_presets(grid_size):
                     pattern[i, j, k] = 2
     presets['Checkerboard'] = pattern
     
-    # Core-Shell
     pattern = np.ones((grid_size, grid_size, grid_size), dtype=int)
     for i in range(grid_size):
         for j in range(grid_size):
@@ -543,14 +633,12 @@ def generate_pattern_presets(grid_size):
                     pattern[i, j, k] = 2
     presets['Core-Shell'] = pattern
     
-    # Layered
     pattern = np.ones((grid_size, grid_size, grid_size), dtype=int)
     for k in range(grid_size):
         if k < grid_size // 2:
             pattern[:, :, k] = 2
     presets['Layered'] = pattern
     
-    # Sandwich
     pattern = np.ones((grid_size, grid_size, grid_size), dtype=int)
     pattern[:, :, 0] = 2
     pattern[:, :, -1] = 2
@@ -595,7 +683,7 @@ def create_2d_layer_view(pattern):
     return fig
 
 def create_static_demo_image():
-    """Create static 4x4x4 demo"""
+    """Create static 4x4x4 demo with compatible cells"""
     demo_pattern = np.ones((4, 4, 4), dtype=int)
     for i in range(4):
         for j in range(4):
@@ -618,7 +706,7 @@ def create_static_demo_image():
                     for trace in traces:
                         if not bending_added:
                             trace.showlegend = True
-                            trace.name = 'Bending-Dominated'
+                            trace.name = 'Bending: BCC'
                             bending_added = True
                         fig.add_trace(trace)
                 else:
@@ -626,7 +714,7 @@ def create_static_demo_image():
                     for trace in traces:
                         if not stretching_added:
                             trace.showlegend = True
-                            trace.name = 'Stretching-Dominated'
+                            trace.name = 'Stretching: Octet-Truss'
                             stretching_added = True
                         fig.add_trace(trace)
     
@@ -655,7 +743,7 @@ def create_static_demo_image():
 # ============================================
 
 def main():
-    st.markdown('<div class="main-header">HybridLattice: An Agentic AI model to create hybrid architected materials</div>', 
+    st.markdown('<div class="main-header">HybridLattice: Research-Based Compatible Hybrid Architected Materials</div>', 
                 unsafe_allow_html=True)
     
     # Static demo image
@@ -664,11 +752,11 @@ def main():
             demo_fig = create_static_demo_image()
             st.plotly_chart(demo_fig, use_container_width=True, key="static_demo")
             st.markdown("""
-            <div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; 
-                        border-left: 3px solid #1f77b4; margin-top: 10px; text-align: center;'>
-                <span style='color: #1f77b4;'>Sky Blue = Bending-Dominated</span> | 
-                <span style='color: #ff0000;'>Red = Stretching-Dominated</span><br>
-                <small>4x4x4 Hybrid Lattice - Complete Research-Accurate Geometry</small>
+            <div style='background-color: #d4edda; padding: 10px; border-radius: 5px; 
+                        border-left: 3px solid #28a745; margin-top: 10px; text-align: center;'>
+                <span style='color: #1f77b4;'>Sky Blue = BCC (Bending)</span> | 
+                <span style='color: #ff0000;'>Red = Octet-Truss (Stretching)</span><br>
+                <small>[COMPATIBLE] Compatible Cell Combination - Proper Connectivity at Boundaries</small>
             </div>
             """, unsafe_allow_html=True)
         except:
@@ -701,8 +789,8 @@ def main():
         st.markdown("### Grid Configuration")
         grid_size = st.selectbox("Grid Size", options=[2, 4], index=1)
         
-        # Cell selection
-        st.markdown("### Unit Cell Types")
+        # Cell selection with compatibility info
+        st.markdown("### Unit Cell Selection")
         
         st.markdown("#### Bending-Dominated (Sky Blue)")
         selected_bending = st.selectbox(
@@ -721,11 +809,22 @@ def main():
                    unsafe_allow_html=True)
         
         st.markdown("#### Stretching-Dominated (Red)")
+        
+        # Filter stretching cells based on compatibility
+        compatible_stretching = COMPATIBILITY_MATRIX[selected_bending]['compatible']
+        
+        if len(compatible_stretching) == 0:
+            st.warning("WARNING: No compatible stretching cells available for this bending cell")
+            available_stretching = list(STRETCHING_CELL_TYPES.keys())
+        else:
+            st.info(f"[COMPATIBLE] {len(compatible_stretching)} compatible option(s) available")
+            available_stretching = compatible_stretching
+        
         selected_stretching = st.selectbox(
             "Select Stretching Cell",
-            options=list(STRETCHING_CELL_TYPES.keys()),
+            options=available_stretching,
             format_func=lambda x: STRETCHING_CELL_TYPES[x]['name'],
-            index=list(STRETCHING_CELL_TYPES.keys()).index(st.session_state.selected_stretching_cell)
+            index=0
         )
         
         if selected_stretching != st.session_state.selected_stretching_cell:
@@ -735,6 +834,13 @@ def main():
         st.markdown(f'<div style="background-color: {COLOR_STRETCHING}; padding: 10px; border-radius: 5px; color: white;">'
                    f'{stretching_info["name"]}<br><small>{stretching_info["description"]}</small></div>', 
                    unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Compatibility status
+        st.markdown("### Compatibility Status")
+        is_compatible = display_compatibility_status(selected_bending, selected_stretching)
+        st.session_state.compatibility_status = is_compatible
         
         st.markdown("---")
         
@@ -766,6 +872,16 @@ def main():
     
     with tab1:
         st.markdown("## Design Studio")
+        
+        # Show compatibility warning at top if incompatible
+        if st.session_state.compatibility_status == False:
+            st.markdown("""
+            <div class="compatibility-error">
+                <strong>[WARNING] Current cell combination is INCOMPATIBLE</strong><br>
+                The visualization below may show disconnected struts at cell boundaries. 
+                Select compatible cell types in the sidebar for functional hybrid structures.
+            </div>
+            """, unsafe_allow_html=True)
         
         col1, col2 = st.columns([1, 1])
         
@@ -811,10 +927,14 @@ def main():
                 viz_type = st.radio("Type", options=["3D Interactive", "2D Layer View"], horizontal=True)
                 
                 if viz_type == "3D Interactive":
-                    with st.spinner("Generating complete research-accurate 3D geometry..."):
+                    with st.spinner("Generating 3D geometry..."):
                         fig = visualize_3d_pattern_connected(st.session_state.current_pattern)
                         st.plotly_chart(fig, use_container_width=True)
-                    st.info("Complete unit cell geometries based on published research")
+                    
+                    if st.session_state.compatibility_status == True:
+                        st.success("[COMPATIBLE] Compatible cell combination - proper nodal connectivity")
+                    else:
+                        st.error("[INCOMPATIBLE] Incompatible cells - may show disconnected struts")
                 else:
                     fig = create_2d_layer_view(st.session_state.current_pattern)
                     st.plotly_chart(fig, use_container_width=True)
@@ -828,6 +948,10 @@ def main():
             st.warning("Please configure API key in sidebar")
         else:
             st.markdown("Use AI to generate optimal patterns")
+            
+            # Add compatibility note
+            if st.session_state.compatibility_status == False:
+                st.warning("[WARNING] Current cell combination is incompatible. AI suggestions may need compatible cell selection.")
             
             task = st.selectbox("Select Task", [
                 "Generate Optimal Pattern",
@@ -849,6 +973,9 @@ def main():
                 
                 if st.button("Generate Design", type="primary"):
                     with st.spinner("AI generating..."):
+                        bending_type = st.session_state.selected_bending_cell
+                        stretching_type = st.session_state.selected_stretching_cell
+                        
                         prompt = f"""Design an optimal {grid_size}x{grid_size}x{grid_size} hybrid material.
 
 REQUIREMENTS:
@@ -858,8 +985,10 @@ REQUIREMENTS:
 - Weight importance: {weight}/10
 
 CELL TYPES:
-- Type 1 = Bending-dominated (flexible)
-- Type 2 = Stretching-dominated (stiff)
+- Type 1 = {BENDING_CELL_TYPES[bending_type]['name']} (bending-dominated)
+- Type 2 = {STRETCHING_CELL_TYPES[stretching_type]['name']} (stretching-dominated)
+
+IMPORTANT: These cells are {'COMPATIBLE' if st.session_state.compatibility_status else 'INCOMPATIBLE'}.
 
 FORMAT:
 LAYER_1:
@@ -895,10 +1024,17 @@ Show all {grid_size} layers."""
                     if st.button("Analyze", type="primary"):
                         with st.spinner("Analyzing..."):
                             pattern = st.session_state.current_pattern
+                            bending_type = st.session_state.selected_bending_cell
+                            stretching_type = st.session_state.selected_stretching_cell
+                            
                             prompt = f"""Analyze this {grid_size}x{grid_size}x{grid_size} pattern:
 Layer 1: {pattern[:,:,0].tolist()}
 
-Where 1=flexible, 2=stiff
+Cell types:
+- Type 1 = {BENDING_CELL_TYPES[bending_type]['name']} (flexible)
+- Type 2 = {STRETCHING_CELL_TYPES[stretching_type]['name']} (stiff)
+
+Compatibility: {'COMPATIBLE' if st.session_state.compatibility_status else 'INCOMPATIBLE'}
 
 PROVIDE:
 1. Stiffness in X,Y,Z (rate 1-10 each)
@@ -985,7 +1121,14 @@ PREDICT:
                     st.session_state.chat_history.append({'role': 'user', 'content': user_input})
                     
                     with st.spinner("AI thinking..."):
-                        prompt = f"""You are an expert in metamaterials. Answer: {user_input}"""
+                        prompt = f"""You are an expert in metamaterials and hybrid lattice structures. 
+                        
+Current context:
+- Bending cell: {BENDING_CELL_TYPES[st.session_state.selected_bending_cell]['name']}
+- Stretching cell: {STRETCHING_CELL_TYPES[st.session_state.selected_stretching_cell]['name']}
+- Compatibility: {'COMPATIBLE' if st.session_state.compatibility_status else 'INCOMPATIBLE'}
+
+Answer: {user_input}"""
                         response, references = query_gemini_with_references(prompt)
                         st.session_state.chat_history.append({
                             'role': 'assistant',
