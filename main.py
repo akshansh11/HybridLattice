@@ -763,7 +763,7 @@ def create_static_demo_image():
 # ============================================
 
 def main():
-    st.markdown('<div class="main-header">HybridLattice: Research-Based Compatible Hybrid Architected Materials</div>', 
+    st.markdown('<div class="main-header">HybridLattice: An Agentic AI Model for designing Hybrid Architected Materials</div>', 
                 unsafe_allow_html=True)
     
     # Static demo image
