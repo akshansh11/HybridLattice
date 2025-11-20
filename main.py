@@ -87,71 +87,86 @@ COLOR_STRETCHING = 'rgb(255, 0, 0)'
 # ============================================
 
 # Research references:
-# 1. FCC-BCC: Proven compatible (PMC, DOI: 10.1016/j.heliyon.2024.e39411)
-# 2. Octet-BCC: Proven compatible (multiple papers on hybrid BCC-Octet structures)
-# 3. Diamond-FCC: Compatible (TPMS hybrid studies)
-# 4. Kelvin cells: Limited compatibility due to different connectivity (Z=14 vs Z=12)
+# 1. Rhombic Dodecahedron + Octet: Yu et al. (2023) - Both Z=12, proven compatible
+# 2. BCC + Octet: Bian et al. (2023) - Hierarchical design, continuous distribution
+# 3. BCC + FCC: Bian et al. (2023) - Precipitation-inspired strengthening
+# 4. GBCC + ECC: Zhang et al. (2023) - Variable density composite lattice
 
 COMPATIBILITY_MATRIX = {
     # Bending cells (keys) -> Compatible stretching cells (values)
     'bcc': {
         'compatible': ['octet', 'fcc'],
-        'reason': 'BCC has nodal connectivity Z=8, can connect with FCC (Z=12) and Octet (Z=12) at shared nodes',
+        'reason': 'BCC (Z=8) connects with Octet (Z=12) and FCC (Z=12) through continuous hierarchical distribution at shared nodes',
         'references': [
-            'Design and evaluation of FCC-BCC hybrid lattice structures (PMC, 2024)',
-            'Multi-cell hybrid BCC-Octet structures (Journal of Materials, 2020)'
-        ]
+            'Bian et al. (2023): Mechanical Properties of Internally Hierarchical Multiphase Lattices - ACS Appl. Mater. Interfaces',
+            'Zhang et al. (2023): Variable Density Multi-Configuration Composite Lattice - Composite Structures 304'
+        ],
+        'mechanism': 'Hierarchical continuous distribution ensures proper connectivity despite Z mismatch'
     },
     'rhombic_dodec': {
-        'compatible': ['diamond'],
-        'reason': 'Rhombic dodecahedron has 14 vertices, compatible with Diamond tetrahedral structure',
+        'compatible': ['octet'],
+        'reason': 'Rhombic Dodecahedron (Z=12, bending) + Octet-truss (Z=12, stretching) - matching nodal connectivity enables proper structural integration',
         'references': [
-            'Hybrid lattice structures with Pillar Octahedral and Rhombic Dodecahedron (IJAMT, 2023)'
-        ]
+            'Yu et al. (2023): Mechanical performance of heterogeneous lattice structure - Vibroengineering Procedia 50:206-212'
+        ],
+        'mechanism': 'Direct nodal connectivity match (Z=12 to Z=12) with complementary deformation modes'
     },
     'kelvin': {
         'compatible': [],
-        'reason': 'Kelvin cell (truncated octahedron) has Z=14 connectivity, incompatible with most stretching-dominated cells (Z=12)',
+        'reason': 'Kelvin cell (truncated octahedron, Z=14) has incompatible connectivity with standard stretching cells',
         'references': [
-            'Kelvin cell mechanical properties (JOM, 2023) - shows limited hybrid compatibility'
-        ]
+            'No compatible pairings found in literature - connectivity mismatch prevents proper integration'
+        ],
+        'mechanism': 'Z=14 cannot properly connect to Z=12 or Z=4 structures'
     },
 }
 
-# Research-accurate cell type definitions with connectivity information
+# Research-accurate cell type definitions with connectivity and deformation information
 BENDING_CELL_TYPES = {
     'bcc': {
         'name': 'BCC (Body-Centered Cubic)',
         'description': 'Bending-dominated - diagonal struts, Z=8',
-        'connectivity': 8
+        'connectivity': 8,
+        'deformation_mode': 'bending',
+        'research_use': 'Yu et al. (2023), Bian et al. (2023), Zhang et al. (2023)'
     },
     'rhombic_dodec': {
-        'name': 'Rhombic Dodecahedron',
-        'description': 'Bending-dominated - 12 faces, Z=14',
-        'connectivity': 14
+        'name': 'Rhombic Dodecahedron', 
+        'description': 'Bending-dominated - 12 rhombic faces, Z=12',
+        'connectivity': 12,
+        'deformation_mode': 'bending',
+        'research_use': 'Yu et al. (2023) - heterogeneous lattice study'
     },
     'kelvin': {
         'name': 'Kelvin Cell',
         'description': 'Bending-dominated - truncated octahedron, Z=14',
-        'connectivity': 14
+        'connectivity': 14,
+        'deformation_mode': 'bending',
+        'research_use': 'Limited use due to connectivity constraints'
     },
 }
 
 STRETCHING_CELL_TYPES = {
     'octet': {
         'name': 'Octet-Truss',
-        'description': 'Stretching-dominated - triangulated, Z=12',
-        'connectivity': 12
+        'description': 'Stretching-dominated - triangulated structure, Z=12',
+        'connectivity': 12,
+        'deformation_mode': 'stretching',
+        'research_use': 'Yu et al. (2023), Bian et al. (2023) - most common stretching cell'
     },
     'fcc': {
         'name': 'FCC (Face-Centered Cubic)',
         'description': 'Stretching-dominated - face centers, Z=12',
-        'connectivity': 12
+        'connectivity': 12,
+        'deformation_mode': 'stretching',
+        'research_use': 'Bian et al. (2023) - hierarchical multiphase lattices'
     },
     'diamond': {
         'name': 'Diamond',
         'description': 'Stretching-dominated - tetrahedral, Z=4',
-        'connectivity': 4
+        'connectivity': 4,
+        'deformation_mode': 'stretching',
+        'research_use': 'Limited use in hybrid structures due to low connectivity'
     },
 }
 
@@ -170,30 +185,32 @@ def check_compatibility(bending_type, stretching_type):
     compat_info = COMPATIBILITY_MATRIX[bending_type]
     
     if stretching_type in compat_info['compatible']:
-        return True, "Compatible - Cells can connect properly at boundaries", {
+        return True, "✓ COMPATIBLE - Cells can connect properly at boundaries", {
             'reason': compat_info['reason'],
             'references': compat_info['references'],
+            'mechanism': compat_info['mechanism'],
             'bending_connectivity': BENDING_CELL_TYPES[bending_type]['connectivity'],
             'stretching_connectivity': STRETCHING_CELL_TYPES[stretching_type]['connectivity']
         }
     else:
-        return False, "WARNING: INCOMPATIBLE - These cells cannot form proper connections", {
+        return False, "✗ INCOMPATIBLE - These cells cannot form proper connections", {
             'reason': compat_info['reason'],
             'bending_connectivity': BENDING_CELL_TYPES[bending_type]['connectivity'],
             'stretching_connectivity': STRETCHING_CELL_TYPES[stretching_type]['connectivity'],
-            'issue': 'Nodal connectivity mismatch prevents proper structural integration'
+            'issue': 'Nodal connectivity mismatch or lack of research validation prevents proper structural integration'
         }
 
 def display_compatibility_status(bending_type, stretching_type):
-    """Display compatibility status with detailed information"""
+    """Display compatibility status with detailed research-based information"""
     is_compatible, message, details = check_compatibility(bending_type, stretching_type)
     
     if is_compatible:
         st.markdown(f"""
         <div class="compatibility-success">
-            <h4>[COMPATIBLE] {message}</h4>
+            <h4>{message}</h4>
             <p><strong>Why Compatible:</strong> {details['reason']}</p>
-            <p><strong>Nodal Connectivity:</strong> Bending (Z={details['bending_connectivity']}) <-> Stretching (Z={details['stretching_connectivity']})</p>
+            <p><strong>Connection Mechanism:</strong> {details['mechanism']}</p>
+            <p><strong>Nodal Connectivity:</strong> Bending (Z={details['bending_connectivity']}) ↔ Stretching (Z={details['stretching_connectivity']})</p>
             <details>
                 <summary><strong>Research References</strong></summary>
                 <ul>
@@ -205,22 +222,23 @@ def display_compatibility_status(bending_type, stretching_type):
     else:
         st.markdown(f"""
         <div class="compatibility-error">
-            <h4>[INCOMPATIBLE] {message}</h4>
+            <h4>{message}</h4>
             <p><strong>Issue:</strong> {details['issue']}</p>
             <p><strong>Technical Reason:</strong> {details['reason']}</p>
             <p><strong>Nodal Connectivity:</strong> Bending (Z={details['bending_connectivity']}) vs Stretching (Z={details['stretching_connectivity']})</p>
-            <p><strong>WARNING:</strong> Visualization may show disconnected struts at cell boundaries. Choose compatible cell types for functional hybrid structures.</p>
+            <p><strong>⚠ WARNING:</strong> This combination is not validated by research. The visualization may show disconnected struts at cell boundaries.</p>
+            <p><strong>Recommendation:</strong> Select a compatible cell pairing from the sidebar options.</p>
         </div>
         """, unsafe_allow_html=True)
     
     return is_compatible
 
 # ============================================
-# GEOMETRY FUNCTIONS (kept from original)
+# GEOMETRY FUNCTIONS
 # ============================================
 
 def create_bcc_cell_complete(i, j, k, size, color):
-    """BCC (Body-Centered Cubic) - Bending-dominated"""
+    """BCC (Body-Centered Cubic) - Bending-dominated, Z=8"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
@@ -246,7 +264,7 @@ def create_bcc_cell_complete(i, j, k, size, color):
     return traces
 
 def create_rhombic_dodecahedron_complete(i, j, k, size, color):
-    """Rhombic Dodecahedron - Bending-dominated"""
+    """Rhombic Dodecahedron - Bending-dominated, Z=12"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
@@ -286,7 +304,7 @@ def create_rhombic_dodecahedron_complete(i, j, k, size, color):
     return traces
 
 def create_kelvin_cell_complete(i, j, k, size, color):
-    """Kelvin Cell (Truncated Octahedron) - Bending-dominated"""
+    """Kelvin Cell (Truncated Octahedron) - Bending-dominated, Z=14"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
@@ -337,7 +355,7 @@ def create_kelvin_cell_complete(i, j, k, size, color):
     return traces
 
 def create_octet_truss_complete(i, j, k, size, color):
-    """Octet-Truss - Stretching-dominated"""
+    """Octet-Truss - Stretching-dominated, Z=12"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
@@ -376,7 +394,7 @@ def create_octet_truss_complete(i, j, k, size, color):
     return traces
 
 def create_fcc_cell_complete(i, j, k, size, color):
-    """FCC (Face-Centered Cubic) - Stretching-dominated"""
+    """FCC (Face-Centered Cubic) - Stretching-dominated, Z=12"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
@@ -435,7 +453,7 @@ def create_fcc_cell_complete(i, j, k, size, color):
     return traces
 
 def create_diamond_lattice_complete(i, j, k, size, color):
-    """Diamond Lattice - Stretching-dominated"""
+    """Diamond Lattice - Stretching-dominated, Z=4"""
     traces = []
     s = size
     x0, y0, z0 = i * s, j * s, k * s
@@ -530,7 +548,9 @@ def visualize_3d_pattern_connected(pattern, cell_size=1.0, show_legend=True):
     # Add annotation if incompatible
     title_text = '3D Hybrid Lattice Structure'
     if not is_compatible:
-        title_text += ' [WARNING: INCOMPATIBLE CELL COMBINATION]'
+        title_text += ' [⚠ WARNING: INCOMPATIBLE CELL COMBINATION]'
+    else:
+        title_text += ' [✓ COMPATIBLE - Research Validated]'
     
     fig.update_layout(
         scene=dict(
@@ -551,7 +571,7 @@ def visualize_3d_pattern_connected(pattern, cell_size=1.0, show_legend=True):
     return fig
 
 # ============================================
-# UTILITY FUNCTIONS (kept from original)
+# UTILITY FUNCTIONS
 # ============================================
 
 def configure_gemini_api(api_key):
@@ -683,7 +703,7 @@ def create_2d_layer_view(pattern):
     return fig
 
 def create_static_demo_image():
-    """Create static 4x4x4 demo with compatible cells"""
+    """Create static 4x4x4 demo with COMPATIBLE cells (BCC + Octet)"""
     demo_pattern = np.ones((4, 4, 4), dtype=int)
     for i in range(4):
         for j in range(4):
@@ -754,9 +774,9 @@ def main():
             st.markdown("""
             <div style='background-color: #d4edda; padding: 10px; border-radius: 5px; 
                         border-left: 3px solid #28a745; margin-top: 10px; text-align: center;'>
-                <span style='color: #1f77b4;'>Sky Blue = BCC (Bending)</span> | 
-                <span style='color: #ff0000;'>Red = Octet-Truss (Stretching)</span><br>
-                <small>[COMPATIBLE] Compatible Cell Combination - Proper Connectivity at Boundaries</small>
+                <span style='color: #1f77b4;'>Sky Blue = BCC (Bending, Z=8)</span> | 
+                <span style='color: #ff0000;'>Red = Octet-Truss (Stretching, Z=12)</span><br>
+                <small>✓ [COMPATIBLE] Research-validated pairing - Bian et al. (2023)</small>
             </div>
             """, unsafe_allow_html=True)
         except:
@@ -814,17 +834,21 @@ def main():
         compatible_stretching = COMPATIBILITY_MATRIX[selected_bending]['compatible']
         
         if len(compatible_stretching) == 0:
-            st.warning("WARNING: No compatible stretching cells available for this bending cell")
+            st.warning("⚠ WARNING: No compatible stretching cells available for this bending cell")
             available_stretching = list(STRETCHING_CELL_TYPES.keys())
         else:
-            st.info(f"[COMPATIBLE] {len(compatible_stretching)} compatible option(s) available")
+            st.info(f"✓ {len(compatible_stretching)} compatible option(s) available")
             available_stretching = compatible_stretching
+        
+        # Ensure current selection is in available options
+        if st.session_state.selected_stretching_cell not in available_stretching:
+            st.session_state.selected_stretching_cell = available_stretching[0]
         
         selected_stretching = st.selectbox(
             "Select Stretching Cell",
             options=available_stretching,
             format_func=lambda x: STRETCHING_CELL_TYPES[x]['name'],
-            index=0
+            index=available_stretching.index(st.session_state.selected_stretching_cell)
         )
         
         if selected_stretching != st.session_state.selected_stretching_cell:
@@ -877,9 +901,17 @@ def main():
         if st.session_state.compatibility_status == False:
             st.markdown("""
             <div class="compatibility-error">
-                <strong>[WARNING] Current cell combination is INCOMPATIBLE</strong><br>
+                <strong>⚠ [WARNING] Current cell combination is INCOMPATIBLE</strong><br>
                 The visualization below may show disconnected struts at cell boundaries. 
+                This combination has not been validated by research literature.
                 Select compatible cell types in the sidebar for functional hybrid structures.
+            </div>
+            """, unsafe_allow_html=True)
+        elif st.session_state.compatibility_status == True:
+            st.markdown("""
+            <div class="compatibility-success">
+                <strong>✓ [COMPATIBLE] Current cell combination is research-validated</strong><br>
+                This pairing has been proven in published literature to form proper connections.
             </div>
             """, unsafe_allow_html=True)
         
@@ -932,9 +964,9 @@ def main():
                         st.plotly_chart(fig, use_container_width=True)
                     
                     if st.session_state.compatibility_status == True:
-                        st.success("[COMPATIBLE] Compatible cell combination - proper nodal connectivity")
+                        st.success("✓ [COMPATIBLE] Research-validated cell combination - proper nodal connectivity")
                     else:
-                        st.error("[INCOMPATIBLE] Incompatible cells - may show disconnected struts")
+                        st.error("✗ [INCOMPATIBLE] This pairing lacks research validation - may show disconnected struts")
                 else:
                     fig = create_2d_layer_view(st.session_state.current_pattern)
                     st.plotly_chart(fig, use_container_width=True)
@@ -951,7 +983,7 @@ def main():
             
             # Add compatibility note
             if st.session_state.compatibility_status == False:
-                st.warning("[WARNING] Current cell combination is incompatible. AI suggestions may need compatible cell selection.")
+                st.warning("⚠ [WARNING] Current cell combination is incompatible. AI suggestions may need compatible cell selection.")
             
             task = st.selectbox("Select Task", [
                 "Generate Optimal Pattern",
@@ -984,11 +1016,11 @@ REQUIREMENTS:
 - Energy absorption: {energy}%
 - Weight importance: {weight}/10
 
-CELL TYPES:
-- Type 1 = {BENDING_CELL_TYPES[bending_type]['name']} (bending-dominated)
-- Type 2 = {STRETCHING_CELL_TYPES[stretching_type]['name']} (stretching-dominated)
+CELL TYPES (Research-validated pairing):
+- Type 1 = {BENDING_CELL_TYPES[bending_type]['name']} (bending-dominated, Z={BENDING_CELL_TYPES[bending_type]['connectivity']})
+- Type 2 = {STRETCHING_CELL_TYPES[stretching_type]['name']} (stretching-dominated, Z={STRETCHING_CELL_TYPES[stretching_type]['connectivity']})
 
-IMPORTANT: These cells are {'COMPATIBLE' if st.session_state.compatibility_status else 'INCOMPATIBLE'}.
+COMPATIBILITY: These cells are {'COMPATIBLE - research validated' if st.session_state.compatibility_status else 'INCOMPATIBLE - not validated'}.
 
 FORMAT:
 LAYER_1:
@@ -1031,10 +1063,10 @@ Show all {grid_size} layers."""
 Layer 1: {pattern[:,:,0].tolist()}
 
 Cell types:
-- Type 1 = {BENDING_CELL_TYPES[bending_type]['name']} (flexible)
-- Type 2 = {STRETCHING_CELL_TYPES[stretching_type]['name']} (stiff)
+- Type 1 = {BENDING_CELL_TYPES[bending_type]['name']} (bending, Z={BENDING_CELL_TYPES[bending_type]['connectivity']})
+- Type 2 = {STRETCHING_CELL_TYPES[stretching_type]['name']} (stretching, Z={STRETCHING_CELL_TYPES[stretching_type]['connectivity']})
 
-Compatibility: {'COMPATIBLE' if st.session_state.compatibility_status else 'INCOMPATIBLE'}
+Compatibility: {'COMPATIBLE - research validated' if st.session_state.compatibility_status else 'INCOMPATIBLE'}
 
 PROVIDE:
 1. Stiffness in X,Y,Z (rate 1-10 each)
@@ -1124,9 +1156,9 @@ PREDICT:
                         prompt = f"""You are an expert in metamaterials and hybrid lattice structures. 
                         
 Current context:
-- Bending cell: {BENDING_CELL_TYPES[st.session_state.selected_bending_cell]['name']}
-- Stretching cell: {STRETCHING_CELL_TYPES[st.session_state.selected_stretching_cell]['name']}
-- Compatibility: {'COMPATIBLE' if st.session_state.compatibility_status else 'INCOMPATIBLE'}
+- Bending cell: {BENDING_CELL_TYPES[st.session_state.selected_bending_cell]['name']} (Z={BENDING_CELL_TYPES[st.session_state.selected_bending_cell]['connectivity']})
+- Stretching cell: {STRETCHING_CELL_TYPES[st.session_state.selected_stretching_cell]['name']} (Z={STRETCHING_CELL_TYPES[st.session_state.selected_stretching_cell]['connectivity']})
+- Compatibility: {'COMPATIBLE - research validated' if st.session_state.compatibility_status else 'INCOMPATIBLE - not validated'}
 
 Answer: {user_input}"""
                         response, references = query_gemini_with_references(prompt)
